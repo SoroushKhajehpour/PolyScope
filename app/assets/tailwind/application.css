@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+/* PolyScope design tokens — dark theme only */
+@theme {
+  /* Background & surfaces */
+  --color-background: #0d0d0d;
+  --color-card: #1a1a1a;
+  --color-border: #2a2a2a;
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #888888;
+  /* Accent */
+  --color-accent: #3b82f6;
+  /* Risk badges */
+  --color-risk-low: #22c55e;
+  --color-risk-medium: #eab308;
+  --color-risk-high: #f97316;
+  --color-risk-critical: #ef4444;
+}

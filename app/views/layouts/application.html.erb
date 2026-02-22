@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" class="antialiased">
   <head>
     <title><%= content_for(:title) || "Polyscope" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -21,7 +21,7 @@
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
   </head>
 
-  <body>
+  <body class="min-h-screen bg-background text-text-primary">
     <main class="container mx-auto mt-28 px-5 flex">
       <%= yield %>
     </main>
