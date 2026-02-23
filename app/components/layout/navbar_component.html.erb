@@ -1,0 +1,17 @@
+<nav class="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-background px-5">
+  <div class="mx-auto flex h-full max-w-7xl items-center justify-between">
+    <%= link_to "/", class: "text-xl font-semibold text-text-primary hover:text-accent transition-colors" do %>
+      PolyScope
+    <% end %>
+
+    <ul class="flex gap-6">
+      <% nav_links.each do |link| %>
+        <li>
+          <%= link_to link[:label],
+                      link[:path],
+                      class: "text-text-secondary hover:text-accent transition-colors" %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</nav>

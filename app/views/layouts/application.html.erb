@@ -22,7 +22,8 @@
   </head>
 
   <body class="min-h-screen bg-background text-text-primary">
-    <main class="container mx-auto mt-28 px-5 flex">
+    <%= render Layout::NavbarComponent.new %>
+    <main class="container mx-auto px-5 pt-20 flex">
       <%= yield %>
     </main>
   </body>
