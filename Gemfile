@@ -60,4 +60,4 @@ gem "redis"
 gem "dotenv-rails", groups: [:development, :test]
 
 
-gem "tailwindcss-rails", "~> 4.3"
+gem "tailwindcss-rails", "~> 4.4"
