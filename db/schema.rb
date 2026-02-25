@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_25_023747) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_023800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -27,4 +27,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_25_023747) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
+
+  create_table "risk_scores", force: :cascade do |t|
+    t.bigint "market_id", null: false
+    t.integer "score", null: false
+    t.string "level", null: false
+    t.jsonb "factors", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["market_id"], name: "index_risk_scores_on_market_id"
+  end
+
+  add_foreign_key "risk_scores", "markets"
 end
