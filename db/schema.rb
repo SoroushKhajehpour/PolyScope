@@ -10,8 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 0) do
-  # These are extensions that mu`4st be enabled in order to support this database
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_023747) do
+  # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
+  create_table "markets", force: :cascade do |t|
+    t.string "polymarket_id"
+    t.string "question"
+    t.text "resolution_criteria"
+    t.string "category"
+    t.datetime "end_date"
+    t.string "status"
+    t.decimal "yes_price"
+    t.decimal "no_price"
+    t.decimal "volume"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 end

@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  polymarket_id: MyString
+  question: MyString
+  resolution_criteria: MyText
+  category: MyString
+  end_date: 2026-02-24 21:37:47
+  status: MyString
+  yes_price: 9.99
+  no_price: 9.99
+  volume: 9.99
+
+two:
+  polymarket_id: MyString
+  question: MyString
+  resolution_criteria: MyText
+  category: MyString
+  end_date: 2026-02-24 21:37:47
+  status: MyString
+  yes_price: 9.99
+  no_price: 9.99
+  volume: 9.99
