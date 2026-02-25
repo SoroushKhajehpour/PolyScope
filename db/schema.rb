@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_25_023800) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_023900) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "disputes", force: :cascade do |t|
+    t.bigint "market_id", null: false
+    t.string "question_id", null: false
+    t.string "proposed_outcome"
+    t.string "final_outcome"
+    t.integer "total_votes_for", default: 0
+    t.integer "total_votes_against", default: 0
+    t.integer "voter_count", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["market_id"], name: "index_disputes_on_market_id"
+    t.index ["question_id"], name: "index_disputes_on_question_id"
+  end
 
   create_table "markets", force: :cascade do |t|
     t.string "polymarket_id"
@@ -38,5 +52,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_25_023800) do
     t.index ["market_id"], name: "index_risk_scores_on_market_id"
   end
 
+  add_foreign_key "disputes", "markets"
   add_foreign_key "risk_scores", "markets"
 end

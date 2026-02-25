@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  market: one
+  question_id: q1
+  proposed_outcome: Yes
+  final_outcome: Yes
+  total_votes_for: 100
+  total_votes_against: 20
+  voter_count: 15
+
+two:
+  market: two
+  question_id: q2
+  proposed_outcome: No
+  final_outcome: No
+  total_votes_for: 30
+  total_votes_against: 80
+  voter_count: 12
