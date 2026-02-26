@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_25_023900) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_024100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -52,6 +52,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_25_023900) do
     t.index ["market_id"], name: "index_risk_scores_on_market_id"
   end
 
+  create_table "votes", force: :cascade do |t|
+    t.bigint "dispute_id", null: false
+    t.bigint "wallet_id", null: false
+    t.string "vote_direction", null: false
+    t.decimal "token_amount", precision: 20, scale: 6
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dispute_id"], name: "index_votes_on_dispute_id"
+    t.index ["wallet_id"], name: "index_votes_on_wallet_id"
+  end
+
+  create_table "wallets", force: :cascade do |t|
+    t.string "address", null: false
+    t.integer "total_votes", default: 0
+    t.decimal "accuracy_rate", precision: 5, scale: 4
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["address"], name: "index_wallets_on_address", unique: true
+  end
+
   add_foreign_key "disputes", "markets"
   add_foreign_key "risk_scores", "markets"
+  add_foreign_key "votes", "disputes"
+  add_foreign_key "votes", "wallets"
 end

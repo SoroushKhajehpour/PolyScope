@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  market: one
+  previous_text: "Resolution based on official source."
+  new_text: "Resolution based on official source as of market end date."
+  diff_html: ""
+  detected_at: 2026-02-24 12:00:00
+
+two:
+  market: two
+  previous_text: "Yes if X wins."
+  new_text: "Yes if X wins by popular vote."
+  diff_html: ""
+  detected_at: 2026-02-24 14:30:00
