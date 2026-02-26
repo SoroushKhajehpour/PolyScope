@@ -10,9 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_25_024100) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_25_024200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "clarifications", force: :cascade do |t|
+    t.bigint "market_id", null: false
+    t.text "previous_text", null: false
+    t.text "new_text", null: false
+    t.text "diff_html"
+    t.datetime "detected_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["market_id"], name: "index_clarifications_on_market_id"
+  end
 
   create_table "disputes", force: :cascade do |t|
     t.bigint "market_id", null: false
@@ -72,6 +83,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_25_024100) do
     t.index ["address"], name: "index_wallets_on_address", unique: true
   end
 
+  add_foreign_key "clarifications", "markets"
   add_foreign_key "disputes", "markets"
   add_foreign_key "risk_scores", "markets"
   add_foreign_key "votes", "disputes"
