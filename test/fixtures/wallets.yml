@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  address: "0x1111111111111111111111111111111111111111"
+  total_votes: 50
+  accuracy_rate: 0.85
+
+two:
+  address: "0x2222222222222222222222222222222222222222"
+  total_votes: 30
+  accuracy_rate: 0.72

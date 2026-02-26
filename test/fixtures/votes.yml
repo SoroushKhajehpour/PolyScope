@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  dispute: one
+  wallet: one
+  vote_direction: for
+  token_amount: 100.5
+
+two:
+  dispute: one
+  wallet: two
+  vote_direction: against
+  token_amount: 25.0
