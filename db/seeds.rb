@@ -42,6 +42,105 @@ markets_data = [
     yes_price: 0.45,
     no_price: 0.55,
     volume: 32_000
+  },
+  {
+    polymarket_id: "pm_geo_004",
+    question: "Will the Iranian regime fall by June 30?",
+    resolution_criteria: "Resolves Yes if the current government is no longer in power per major news consensus.",
+    category: "Geopolitics",
+    end_date: 4.months.from_now,
+    status: "active",
+    yes_price: 0.22,
+    no_price: 0.78,
+    volume: 2_100_000
+  },
+  {
+    polymarket_id: "pm_crypto_005",
+    question: "Will BTC exceed $100k by end of 2025?",
+    resolution_criteria: "Resolves using CoinGecko spot price. Any exchange reporting $100,000 or higher counts.",
+    category: "Crypto",
+    end_date: 10.months.from_now,
+    status: "active",
+    yes_price: 0.58,
+    no_price: 0.42,
+    volume: 4_200_000
+  },
+  {
+    polymarket_id: "pm_politics_006",
+    question: "Will Sweden join NATO before July 2025?",
+    resolution_criteria: "Resolves Yes upon official NATO announcement of Sweden's accession.",
+    category: "Politics",
+    end_date: 5.months.from_now,
+    status: "active",
+    yes_price: 0.91,
+    no_price: 0.09,
+    volume: 890_000
+  },
+  {
+    polymarket_id: "pm_sports_007",
+    question: "Will the Lakers make the NBA playoffs in 2025?",
+    resolution_criteria: "Resolves based on official NBA standings at end of regular season.",
+    category: "Sports",
+    end_date: 3.months.from_now,
+    status: "active",
+    yes_price: 0.62,
+    no_price: 0.38,
+    volume: 156_000
+  },
+  {
+    polymarket_id: "pm_finance_008",
+    question: "Will the Fed cut rates in Q2 2025?",
+    resolution_criteria: "Resolves Yes if the Federal Reserve lowers the federal funds rate at any meeting in Apr–Jun 2025.",
+    category: "Finance",
+    end_date: 4.months.from_now,
+    status: "active",
+    yes_price: 0.48,
+    no_price: 0.52,
+    volume: 1_800_000
+  },
+  {
+    polymarket_id: "pm_geo_009",
+    question: "Will Taiwan see a major military incident by Dec 2025?",
+    resolution_criteria: "Resolves Yes if a significant armed conflict or invasion occurs per Reuters/AP.",
+    category: "Geopolitics",
+    end_date: 10.months.from_now,
+    status: "active",
+    yes_price: 0.18,
+    no_price: 0.82,
+    volume: 520_000
+  },
+  {
+    polymarket_id: "pm_crypto_010",
+    question: "Will ETH trade above $5,000 in 2025?",
+    resolution_criteria: "Resolves using CoinGecko ETH/USD. Any single day above $5,000 counts.",
+    category: "Crypto",
+    end_date: 10.months.from_now,
+    status: "active",
+    yes_price: 0.35,
+    no_price: 0.65,
+    volume: 980_000
+  },
+  {
+    polymarket_id: "pm_politics_011",
+    question: "Will the UK hold a general election in 2025?",
+    resolution_criteria: "Resolves based on official announcement of a UK general election date within the calendar year.",
+    category: "Politics",
+    end_date: 11.months.from_now,
+    status: "active",
+    yes_price: 0.72,
+    no_price: 0.28,
+    volume: 640_000
+  },
+  {
+    polymarket_id: "pm_sports_012",
+    question: "Will Brazil win the 2026 FIFA World Cup?",
+    resolution_criteria: "Resolves to Yes if Brazil wins the final match of the 2026 World Cup.",
+    category: "Sports",
+    end_date: 2.years.from_now,
+    status: "active",
+    yes_price: 0.14,
+    no_price: 0.86,
+    volume: 2_400_000
   }
 ]
 
@@ -75,6 +174,16 @@ markets.each do |market|
       "similar_outcomes" => rand(0..10)
     }
   end
+end
+
+# Ensure at least one market per risk level so the grid shows all badge types
+[
+  [markets[0], "low", 18],
+  [markets[1], "medium", 38],
+  [markets[2], "high", 68],
+  [markets[3], "critical", 88]
+].each do |market, level, score|
+  RiskScore.find_by!(market: market).update!(level: level, score: score)
 end
 
 puts "  Created risk scores for #{markets.size} markets"
