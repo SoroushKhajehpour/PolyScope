@@ -6,15 +6,17 @@
 
   <%= render Markets::MarketFiltersComponent.new %>
 
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-    <% @markets.each do |market| %>
-      <%= render Markets::MarketCardComponent.new(market: market) %>
-    <% end %>
-  </div>
+  <%= turbo_frame_tag "markets_grid" do %>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <% @markets.each do |market| %>
+        <%= render Markets::MarketCardComponent.new(market: market) %>
+      <% end %>
+    </div>
 
-  <div class="mt-8 flex items-center justify-center gap-4">
-    <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">← Prev</button>
-    <span class="text-sm text-[#888888]">Page 1 of 5</span>
-    <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">Next →</button>
-  </div>
+    <div class="mt-8 flex items-center justify-center gap-4">
+      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">← Prev</button>
+      <span class="text-sm text-[#888888]">Page 1 of 5</span>
+      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">Next →</button>
+    </div>
+  <% end %>
 </div>
