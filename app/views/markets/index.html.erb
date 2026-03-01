@@ -4,16 +4,7 @@
     <p class="text-sm text-[#888888]">Explore prediction markets and their resolution risk scores</p>
   </header>
 
-  <div class="mb-6 flex flex-wrap items-center gap-2 overflow-x-auto">
-    <div class="flex shrink-0 gap-2">
-      <button type="button" class="rounded-full border border-transparent bg-[#3b82f6] px-3 py-1.5 text-xs font-medium text-white">All</button>
-      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">Low</button>
-      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">Medium</button>
-      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">High</button>
-      <button type="button" class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white">Critical</button>
-    </div>
-    <input type="text" placeholder="Search markets..." class="ml-auto w-56 shrink-0 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]" aria-label="Search markets">
-  </div>
+  <%= render Markets::MarketFiltersComponent.new %>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
     <% @markets.each do |market| %>
