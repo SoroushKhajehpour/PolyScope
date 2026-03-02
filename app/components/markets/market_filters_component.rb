@@ -22,5 +22,9 @@ module Markets
         "rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white"
       end
     end
+
+    def filter_path(option)
+      option == "all" ? helpers.root_path : helpers.root_path(risk: option)
+    end
   end
 end

@@ -4,7 +4,7 @@
     <p class="text-sm text-[#888888]">Explore prediction markets and their resolution risk scores</p>
   </header>
 
-  <%= render Markets::MarketFiltersComponent.new %>
+  <%= render Markets::MarketFiltersComponent.new(selected_risk: params[:risk].presence || "all") %>
 
   <%= turbo_frame_tag "markets_grid" do %>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

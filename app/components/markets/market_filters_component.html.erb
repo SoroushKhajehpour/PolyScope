@@ -1,7 +1,7 @@
 <div class="mb-6 flex flex-wrap items-center gap-2 overflow-x-auto">
   <div class="flex shrink-0 gap-2">
     <% %w[all low medium high critical].each do |option| %>
-      <button type="button" class="<%= pill_classes(option) %>"><%= option.capitalize %></button>
+      <%= link_to option.capitalize, filter_path(option), data: { turbo_frame: "markets_grid" }, class: "no-underline #{pill_classes(option)}" %>
     <% end %>
   </div>
   <input type="text" placeholder="Search markets..." class="ml-auto w-56 shrink-0 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]" aria-label="Search markets">
