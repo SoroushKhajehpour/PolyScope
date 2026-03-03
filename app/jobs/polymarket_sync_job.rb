@@ -2,7 +2,7 @@
 
 class PolymarketSyncJob < ApplicationJob
   PAGE_LIMIT = 100
-  MAX_PAGES = 10
+  MAX_PAGES = 50
 
   def perform
     client = PolymarketClient.new
@@ -12,7 +12,7 @@ class PolymarketSyncJob < ApplicationJob
     loop do
       break if page >= MAX_PAGES
 
-      data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false)
+      data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false, order: "volume_24hr", ascending: false)
 
       data.each do |hash|
         attrs = PolymarketMarketMapper.call(hash)

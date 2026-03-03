@@ -9,8 +9,10 @@ class PolymarketClient
     end
   end
 
-  def markets(limit: 100, offset: 0, closed: false, include_tag: true)
+  def markets(limit: 100, offset: 0, closed: false, include_tag: true, order: nil, ascending: nil)
     params = { limit: limit, offset: offset, closed: closed, include_tag: include_tag }
+    params[:order] = order if order.present?
+    params[:ascending] = ascending unless ascending.nil?
     response = @conn.get("/markets", params)
     raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
 
