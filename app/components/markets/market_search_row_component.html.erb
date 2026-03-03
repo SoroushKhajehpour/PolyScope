@@ -1,17 +1,14 @@
-<%= link_to detail_path, class: "flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-[#2a2a2a] hover:bg-[#111111]" do %>
-  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#2a2a2a] text-[#888888]">
+<%= link_to detail_path, class: "flex cursor-pointer items-center gap-3 border-b border-[#2a2a2a] px-4 py-3 text-left transition-colors duration-100 last:border-b-0 hover:bg-[#252525]" do %>
+  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#252525] text-[#888888]">
     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
   </div>
 
   <div class="min-w-0 flex-1">
-    <p class="line-clamp-2 text-sm font-medium text-white">
+    <p class="truncate text-sm font-medium text-white">
       <%= @market.question %>
     </p>
-    <% if category.present? %>
-      <p class="truncate text-xs text-[#888888]"><%= category %></p>
-    <% end %>
   </div>
 
   <span class="shrink-0 text-sm font-semibold text-[#3b82f6]"><%= yes_percentage %></span>
