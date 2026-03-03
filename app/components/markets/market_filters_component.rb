@@ -6,9 +6,10 @@ module Markets
   class MarketFiltersComponent < ViewComponent::Base
     RISK_OPTIONS = %w[all low medium high critical].freeze
 
-    def initialize(selected_risk: "all")
+    def initialize(selected_risk: "all", query: nil)
       @selected_risk = selected_risk.to_s.downcase
       @selected_risk = "all" unless RISK_OPTIONS.include?(@selected_risk)
+      @query = query.to_s
     end
 
     def active?(option)
