@@ -1,5 +1,5 @@
-<div class="mb-6 flex flex-wrap items-center gap-2 overflow-x-auto">
-  <div class="flex shrink-0 gap-2">
+<div class="mb-6 flex flex-wrap items-center gap-2">
+  <div class="flex shrink-0 gap-2 overflow-x-auto">
     <% %w[all low medium high critical].each do |option| %>
       <%= link_to option.capitalize, filter_path(option), data: { turbo_frame: "markets_results" }, class: "no-underline #{pill_classes(option)}" %>
     <% end %>
