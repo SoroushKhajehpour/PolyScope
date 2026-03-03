@@ -15,5 +15,18 @@ class PolymarketClient
     raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
 
     JSON.parse(response.body)
+  rescue Faraday::Error => e
+    Rails.logger.error("[PolymarketClient] markets failed: #{e.message}")
+    raise
+  end
+
+  def market(id)
+    response = @conn.get("/markets/#{id}")
+    raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
+
+    JSON.parse(response.body)
+  rescue Faraday::Error => e
+    Rails.logger.error("[PolymarketClient] market(#{id}) failed: #{e.message}")
+    raise
   end
 end
