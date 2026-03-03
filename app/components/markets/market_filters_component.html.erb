@@ -4,8 +4,54 @@
       <%= link_to option.capitalize, filter_path(option), data: { turbo_frame: "markets_results" }, class: "no-underline #{pill_classes(option)}" %>
     <% end %>
   </div>
-  <%= form_with url: helpers.root_path, method: :get, data: { turbo_frame: "markets_results" }, class: "ml-auto shrink-0" do |f| %>
-    <%= hidden_field_tag :risk, @selected_risk if @selected_risk != "all" %>
-    <%= text_field_tag :q, @query, placeholder: "Search markets...", class: "w-56 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]", aria: { label: "Search markets" } %>
-  <% end %>
+  <div class="relative ml-auto shrink-0" id="live_search_wrapper" data-controller="live-search">
+    <%= form_with url: helpers.root_path, method: :get, data: { turbo_frame: "markets_results" }, class: "block" do |f| %>
+      <%= hidden_field_tag :risk, @selected_risk if @selected_risk != "all" %>
+      <%= text_field_tag :q, @query, placeholder: "Search markets...", id: "live_search_input", class: "w-56 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]", aria: { label: "Search markets", expanded: "false", controls: "live_search_results" } %>
+    <% end %>
+    <div id="live_search_results" class="absolute left-0 top-full z-50 mt-1 hidden w-96 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl" aria-hidden="true" role="listbox" aria-labelledby="live_search_input">
+      <div id="live_search_list" class="max-h-80 overflow-y-auto p-2">
+        <p class="py-4 text-center text-sm text-[#888888]" data-live-search-placeholder>Type to search</p>
+      </div>
+      <div id="live_search_chips" class="border-t border-[#2a2a2a] p-2"></div>
+      <div class="border-t border-[#2a2a2a] p-2">
+        <%= link_to "See all results →", helpers.root_path(q: @query.presence, risk: @selected_risk != "all" ? @selected_risk : nil), id: "live_search_see_all", data: { turbo_frame: "markets_results" }, class: "block text-center text-sm font-medium text-[#3b82f6] hover:underline" %>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+(function() {
+  var wrapper = document.getElementById('live_search_wrapper');
+  var input = document.getElementById('live_search_input');
+  var panel = document.getElementById('live_search_results');
+  if (!wrapper || !input || !panel) return;
+
+  function show() {
+    panel.classList.remove('hidden');
+    panel.setAttribute('aria-hidden', 'false');
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function hide() {
+    panel.classList.add('hidden');
+    panel.setAttribute('aria-hidden', 'true');
+    input.setAttribute('aria-expanded', 'false');
+  }
+
+  input.addEventListener('focus', show);
+  input.addEventListener('input', function() {
+    if (input.value.trim().length > 0) show();
+  });
+
+  input.addEventListener('blur', function() {
+    setTimeout(function() {
+      if (!wrapper.contains(document.activeElement)) hide();
+    }, 150);
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hide();
+  });
+})();
+</script>
