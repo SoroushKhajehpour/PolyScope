@@ -1,5 +1,5 @@
 <% if @markets.empty? %>
-  <p class="py-4 text-center text-sm text-[#888888]">No results</p>
+  <p class="px-4 py-3 text-sm text-[#888888]">No markets found</p>
 <% else %>
   <% @markets.each do |market| %>
     <%= render Markets::MarketSearchRowComponent.new(market: market) %>
