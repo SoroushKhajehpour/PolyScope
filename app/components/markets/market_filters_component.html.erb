@@ -9,11 +9,10 @@
       <%= hidden_field_tag :risk, @selected_risk if @selected_risk != "all" %>
       <%= text_field_tag :q, @query, placeholder: "Search markets...", id: "live_search_input", class: "w-56 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]", aria: { label: "Search markets", expanded: "false", controls: "live_search_results" } %>
     <% end %>
-    <div id="live_search_results" class="absolute left-0 top-full z-50 mt-1 hidden w-96 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl" aria-hidden="true" role="listbox" aria-labelledby="live_search_input">
+    <div id="live_search_results" data-live-search-panel class="absolute left-0 top-full z-50 mt-1 hidden w-96 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl" aria-hidden="true" role="listbox" aria-labelledby="live_search_input">
       <div id="live_search_list" class="max-h-80 overflow-y-auto p-2">
         <p class="py-4 text-center text-sm text-[#888888]" data-live-search-placeholder>Type to search</p>
       </div>
-      <div id="live_search_chips" class="border-t border-[#2a2a2a] p-2"></div>
       <div class="border-t border-[#2a2a2a] p-2">
         <%= link_to "See all results →", helpers.root_path(q: @query.presence, risk: @selected_risk != "all" ? @selected_risk : nil), id: "live_search_see_all", data: { turbo_frame: "markets_results" }, class: "block text-center text-sm font-medium text-[#3b82f6] hover:underline" %>
       </div>
@@ -22,12 +21,22 @@
 </div>
 <script>
 (function() {
+  // Single source of truth for the live search dropdown. Turbo Frame "markets_results" is only
+  // used on form submit (Enter); this script controls the overlay via fetch(/live_search).
   var wrapper = document.getElementById('live_search_wrapper');
-  var input = document.getElementById('live_search_input');
+  if (!wrapper || wrapper.dataset.liveSearchBound === 'true') return;
+
+  var panels = document.querySelectorAll('[data-live-search-panel]');
+  if (panels.length > 1) {
+    console.warn('[live-search] Multiple dropdown panels found, using the first.');
+  }
   var panel = document.getElementById('live_search_results');
+  var input = document.getElementById('live_search_input');
   var list = document.getElementById('live_search_list');
   var seeAll = document.getElementById('live_search_see_all');
   if (!wrapper || !input || !panel || !list) return;
+
+  wrapper.dataset.liveSearchBound = 'true';
 
   var debounceTimer;
   var lastRequestId = 0;
