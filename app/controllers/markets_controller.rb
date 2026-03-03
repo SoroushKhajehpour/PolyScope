@@ -8,6 +8,6 @@ class MarketsController < ApplicationController
     if params[:risk].in?(VALID_RISK_LEVELS)
       scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] })
     end
-    @markets = scope.page(params[:page]).per(12)
+    @markets = scope.page(params[:page]).per(36)
   end
 end
