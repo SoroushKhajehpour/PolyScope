@@ -1,3 +1,12 @@
 :concurrency: 5
 :queues:
   - default
+
+# Recurring jobs (sidekiq-scheduler). Run with: bundle exec sidekiq
+:scheduler:
+  :schedule:
+    polymarket_sync:
+      every: "5m"
+      class: PolymarketSyncJob
+      queue: default
+      description: "Fetch markets from Polymarket API"
