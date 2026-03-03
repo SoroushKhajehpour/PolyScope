@@ -8,6 +8,7 @@ class MarketsController < ApplicationController
     if params[:risk].in?(VALID_RISK_LEVELS)
       scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] })
     end
+    scope = scope.search(params[:q]) if params[:q].present?
     @markets = scope.page(params[:page]).per(36)
   end
 end
