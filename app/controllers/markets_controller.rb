@@ -17,6 +17,19 @@ class MarketsController < ApplicationController
     @markets = scope.page(params[:page]).per(36)
   end
 
+  def live_search
+    scope = Market.includes(:risk_score).order(created_at: :desc)
+    scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] }) if params[:risk].in?(VALID_RISK_LEVELS)
+
+    if params[:q].present?
+      hydrate_from_search(params[:q])
+      scope = scope.search(params[:q])
+    end
+
+    @markets = scope.limit(8)
+    render partial: "markets/live_search_results", layout: false
+  end
+
   private
 
   def hydrate_from_search(query)

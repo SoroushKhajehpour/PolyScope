@@ -4,7 +4,7 @@
       <%= link_to option.capitalize, filter_path(option), data: { turbo_frame: "markets_results" }, class: "no-underline #{pill_classes(option)}" %>
     <% end %>
   </div>
-  <div class="relative ml-auto shrink-0" id="live_search_wrapper" data-controller="live-search">
+  <div class="relative ml-auto shrink-0" id="live_search_wrapper" data-controller="live-search" data-live-search-url="<%= helpers.live_search_path %>" data-root-path="<%= helpers.root_path %>" data-selected-risk="<%= @selected_risk %>">
     <%= form_with url: helpers.root_path, method: :get, data: { turbo_frame: "markets_results" }, class: "block" do |f| %>
       <%= hidden_field_tag :risk, @selected_risk if @selected_risk != "all" %>
       <%= text_field_tag :q, @query, placeholder: "Search markets...", id: "live_search_input", class: "w-56 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white placeholder:text-[#888888] focus:border-[#3b82f6] focus:outline-none focus:ring-1 focus:ring-[#3b82f6]", aria: { label: "Search markets", expanded: "false", controls: "live_search_results" } %>
@@ -25,7 +25,12 @@
   var wrapper = document.getElementById('live_search_wrapper');
   var input = document.getElementById('live_search_input');
   var panel = document.getElementById('live_search_results');
-  if (!wrapper || !input || !panel) return;
+  var list = document.getElementById('live_search_list');
+  var seeAll = document.getElementById('live_search_see_all');
+  if (!wrapper || !input || !panel || !list) return;
+
+  var debounceTimer;
+  var lastRequestId = 0;
 
   function show() {
     panel.classList.remove('hidden');
@@ -39,9 +44,54 @@
     input.setAttribute('aria-expanded', 'false');
   }
 
-  input.addEventListener('focus', show);
+  function setListContent(html) {
+    list.innerHTML = html;
+  }
+
+  function setPlaceholder(text) {
+    setListContent('<p class="py-4 text-center text-sm text-[#888888]" data-live-search-placeholder>' + (text || 'Type to search') + '</p>');
+  }
+
+  function fetchResults() {
+    var q = input.value.trim();
+    var baseUrl = wrapper.dataset.liveSearchUrl || '/live_search';
+    var risk = wrapper.dataset.selectedRisk;
+    if (q.length === 0) {
+      setPlaceholder('Type to search');
+      return;
+    }
+    setPlaceholder('Searching…');
+    var reqId = ++lastRequestId;
+    var params = new URLSearchParams({ q: q });
+    if (risk && risk !== 'all') params.set('risk', risk);
+    fetch(baseUrl + '?' + params.toString(), {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(res) { return res.text(); }).then(function(html) {
+      if (reqId !== lastRequestId) return;
+      setListContent(html);
+      if (seeAll) {
+        var href = (wrapper.dataset.rootPath || '/') + '?q=' + encodeURIComponent(q);
+        if (risk && risk !== 'all') href += '&risk=' + encodeURIComponent(risk);
+        seeAll.href = href;
+      }
+    }).catch(function() {
+      if (reqId !== lastRequestId) return;
+      setPlaceholder('Search failed');
+    });
+  }
+
+  function debouncedFetch() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(fetchResults, 250);
+  }
+
+  input.addEventListener('focus', function() {
+    show();
+    if (input.value.trim().length > 0) debouncedFetch();
+  });
   input.addEventListener('input', function() {
     if (input.value.trim().length > 0) show();
+    debouncedFetch();
   });
 
   input.addEventListener('blur', function() {

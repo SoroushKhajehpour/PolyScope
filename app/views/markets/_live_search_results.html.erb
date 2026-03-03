@@ -1,0 +1,7 @@
+<% if @markets.empty? %>
+  <p class="py-4 text-center text-sm text-[#888888]">No results</p>
+<% else %>
+  <% @markets.each do |market| %>
+    <%= render Markets::MarketSearchRowComponent.new(market: market) %>
+  <% end %>
+<% end %>

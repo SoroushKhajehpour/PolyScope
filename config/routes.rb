@@ -11,6 +11,7 @@ Rails.application.routes.draw do
 
 
   root "markets#index"
+  get "live_search" => "markets#live_search", as: :live_search
 
   require "sidekiq/web"
 
