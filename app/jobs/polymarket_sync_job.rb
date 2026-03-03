@@ -2,17 +2,30 @@
 
 class PolymarketSyncJob < ApplicationJob
   PAGE_LIMIT = 100
+  MAX_PAGES = 10
 
   def perform
     client = PolymarketClient.new
-    data = client.markets(limit: PAGE_LIMIT, offset: 0, closed: false)
+    offset = 0
+    page = 0
 
-    data.each do |hash|
-      attrs = market_attributes_from_api(hash)
-      next if attrs[:polymarket_id].blank?
+    loop do
+      break if page >= MAX_PAGES
 
-      market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
-      market.update!(attrs)
+      data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false)
+
+      data.each do |hash|
+        attrs = market_attributes_from_api(hash)
+        next if attrs[:polymarket_id].blank?
+
+        market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
+        market.update!(attrs)
+      end
+
+      break if data.size < PAGE_LIMIT
+
+      offset += PAGE_LIMIT
+      page += 1
     end
   rescue Faraday::Error => e
     Rails.logger.error("[PolymarketSyncJob] #{e.message}")
