@@ -39,8 +39,8 @@ class PolymarketSyncJob < ApplicationJob
     {
       polymarket_id: hash["id"]&.to_s,
       question: hash["question"].presence,
-      resolution_criteria: hash["resolutionSource"].presence,
-      category: hash["category"].presence,
+      resolution_criteria: resolution_criteria_from(hash),
+      category: category_from(hash),
       end_date: parse_time(hash["endDate"] || hash["endDateIso"]),
       status: hash["closed"] == true ? "closed" : "active",
       yes_price: yes_price,
@@ -66,5 +66,18 @@ class PolymarketSyncJob < ApplicationJob
     return nil if val.nil?
 
     val.to_s.gsub(/[^\d.]/, "").to_f
+  end
+
+  def resolution_criteria_from(hash)
+    hash["resolutionSource"].presence || hash["description"].presence
+  end
+
+  def category_from(hash)
+    # Tags come from API when include_tag: true; first tag's label is the category
+    tags = hash["tags"] || []
+    tag_labels = tags.map { |t| t["label"]&.strip }.reject(&:blank?)
+    return tag_labels.first if tag_labels.present?
+
+    hash["category"].presence || hash.dig("events", 0, "category").presence
   end
 end
