@@ -15,6 +15,8 @@ class PolymarketSyncJob < ApplicationJob
       data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false, order: "volume_24hr", ascending: false)
 
       data.each do |hash|
+        next if hash["closed"] == true # Only pull in active markets; ignore closed even if API returns them
+
         attrs = PolymarketMarketMapper.call(hash)
         next if attrs[:polymarket_id].blank?
 

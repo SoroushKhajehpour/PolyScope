@@ -38,6 +38,8 @@ class MarketsController < ApplicationController
 
     response["events"].to_a.each do |event|
       (event["markets"] || []).each do |market_hash|
+        next if market_hash["closed"] == true # Only hydrate active markets; skip closed
+
         attrs = PolymarketMarketMapper.call(market_hash, event: event)
         next if attrs[:polymarket_id].blank?
 
