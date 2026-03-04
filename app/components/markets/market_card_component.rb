@@ -55,5 +55,25 @@ module Markets
 
       "Ends #{@market.end_date.strftime('%b %d')}"
     end
+
+    # Binary probability display (Commit 4)
+    def binary_percentage
+      return nil unless @market.market_type == "binary" && @market.yes_price.present?
+
+      format("%.0f%%", @market.yes_price.to_f * 100)
+    end
+
+    def binary_bar_color
+      return nil unless @market.yes_price.present?
+
+      pct = @market.yes_price.to_f * 100
+      if pct > 60
+        "#22c55e"
+      elsif pct >= 40
+        "#eab308"
+      else
+        "#ef4444"
+      end
+    end
   end
 end
