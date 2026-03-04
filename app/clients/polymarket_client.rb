@@ -1,5 +1,51 @@
 # frozen_string_literal: true
 
+# =============================================================================
+# Gamma API response structure (Phase 1.1 audit — from GET /markets raw payload)
+# =============================================================================
+#
+# Response: array of market objects. No top-level wrapper. Sample in tmp/gamma_sample.json.
+#
+# --- Market type (Binary vs Multi-outcome vs Scalar) ---
+# - No explicit "marketType" or "formatType" in the sampled payload. Type is inferred:
+# - Scalar: presence of scalar range fields — scalarLow, scalarHigh (or min, max), and
+#   current value in scalar (or value, currentValue). One logical market, one record.
+# - Multi-outcome: a single market object whose "outcomes" field parses to an array
+#   of 3+ labels (e.g. ["Trump", "Biden", "Other"]). outcomePrices has same length.
+# - Binary: outcomes parses to exactly two labels (typically ["Yes", "No"]);
+#   outcomePrices is a same-length array of implied probabilities.
+#
+# --- Outcomes representation ---
+# - Top-level on each market: "outcomes" and "outcomePrices" are JSON *strings*
+#   (e.g. outcomes: "[\"Yes\", \"No\"]", outcomePrices: "[\"0.137\", \"0.863\"]").
+# - Parse with JSON.parse to get arrays. Index i in outcomes corresponds to index i
+#   in outcomePrices (probability/price for that outcome).
+# - Not nested; not multiple sibling records per outcome in the sampled /markets response.
+#   Each element of the top-level array is one full market (one conditionId, one question).
+#
+# --- Where probability lives ---
+# - Per-outcome, in outcomePrices. Same order as outcomes. Values are 0–1 implied
+#   probabilities (often sum to 1 for binary).
+#
+# --- Scalar fields ---
+# - Range: scalarLow (min), scalarHigh (max). Aliases: min, max.
+# - Current price leaning: scalar, or value, or currentValue.
+#
+# --- Grouping / multi-outcome as N flat records ---
+# - Each market has a unique conditionId (hex string). Each has an "events" array
+#   (often one event); events[0].id is the parent event id. Multiple markets can
+#   share the same event id (e.g. "What will happen before GTA VI?" with many
+#   child markets). Those are distinct markets (different conditionId, different
+#   question), not one multi-outcome market split across rows.
+# - If the API elsewhere returns N flat records that share a conditionId or
+#   groupId (one record per outcome), the grouping key for merging them into
+#   one logical market would be that identifier (conditionId or groupId).
+# - groupItemTitle / groupItemThreshold appear on binary markets under an event
+#   (e.g. "Russia-Ukraine Ceasefire", "Jesus Christ returns") and label the
+#   outcome within the event, not a separate multi-outcome market.
+#
+# =============================================================================
+
 class PolymarketClient
   BASE_URL = "https://gamma-api.polymarket.com"
 
