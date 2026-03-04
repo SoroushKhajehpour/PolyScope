@@ -38,7 +38,7 @@ class PolymarketClient
     params = {
       q: query,
       limit_per_type: limit_per_type,
-      search_tags: false,
+      search_tags: true,
       search_profiles: false
     }
     response = @conn.get("/public-search", params)
