@@ -4,14 +4,15 @@
 @theme {
   /* Background & surfaces */
   --color-background: #0d0d0d;
-  --color-card: #1a1a1a;
-  --color-border: #2a2a2a;
+  --color-card: #161b22;
+  --color-card-hover: #1c2330;
+  --color-border: #30363d;
   /* Text */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #888888;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #7d8590;
   /* Accent */
   --color-accent: #3b82f6;
-  /* Risk badges */
+  /* Risk badges (use bg-[#22c55e15] etc. in components for pill backgrounds) */
   --color-risk-low: #22c55e;
   --color-risk-medium: #eab308;
   --color-risk-high: #f97316;
