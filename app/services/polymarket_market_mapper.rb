@@ -6,7 +6,7 @@ class PolymarketMarketMapper
   class << self
     def call(hash, event: nil)
       yes_price, no_price = parse_outcome_prices(hash["outcomePrices"])
-      {
+      attrs = {
         polymarket_id: hash["id"]&.to_s,
         question: hash["question"].presence,
         resolution_criteria: resolution_criteria_from(hash),
@@ -17,7 +17,10 @@ class PolymarketMarketMapper
         no_price: no_price,
         volume: parse_volume(hash["volumeNum"] || hash["volume"]),
         image_url: image_url_from(hash, event)
-      }.compact
+      }
+      attrs[:outcomes] = outcomes_from(hash) if outcomes_from(hash).present?
+      attrs.merge!(scalar_attrs_from(hash))
+      attrs.compact
     end
 
     private
@@ -73,6 +76,44 @@ class PolymarketMarketMapper
       url = (event && (event["image"].presence || event["icon"].presence)) ||
             hash["image"].presence || hash["icon"].presence
       url.to_s.strip.presence
+    end
+
+    # Returns array of { "label" => String, "price" => Float } for multi-outcome markets.
+    # Gamma API: outcomes = array of labels, outcomePrices = comma-separated or array of prices.
+    # Only returns when there are more than 2 outcomes (otherwise binary yes/no is used).
+    def outcomes_from(hash)
+      labels = hash["outcomes"]
+      labels = labels.is_a?(Array) ? labels : nil
+      return nil if labels.blank?
+
+      prices_str = hash["outcomePrices"]
+      if prices_str.is_a?(Array)
+        prices = prices_str.map { |p| p.to_s.strip.to_f }
+      else
+        prices = prices_str.to_s.split(",").map { |s| s.strip.to_f }
+      end
+      return nil if prices.size != labels.size || labels.size <= 2
+
+      labels.each_with_index.map do |label, i|
+        { "label" => label.to_s.strip.presence || "Option #{i + 1}", "price" => prices[i] }
+      end
+    end
+
+    # Returns { min_value:, max_value:, current_value: } for scalar markets when API provides range data.
+    # Gamma API may use scalarLow/scalarHigh/scalar or min/max/value.
+    def scalar_attrs_from(hash)
+      min = parse_decimal(hash["scalarLow"] || hash["min"])
+      max = parse_decimal(hash["scalarHigh"] || hash["max"])
+      current = parse_decimal(hash["scalar"] || hash["value"] || hash["currentValue"])
+      return {} if min.nil? || max.nil?
+
+      { min_value: min, max_value: max, current_value: current }.compact
+    end
+
+    def parse_decimal(val)
+      return nil if val.nil? || val.to_s.strip.blank?
+
+      val.to_s.gsub(/[^\d.-]/, "").to_f
     end
   end
 end
