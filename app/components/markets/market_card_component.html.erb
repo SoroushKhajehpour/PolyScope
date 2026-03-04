@@ -3,9 +3,20 @@
     <%= category %>
   </span>
 
-  <p class="line-clamp-3 text-sm font-semibold leading-snug text-[#e6edf3]">
-    <%= @market.question %>
-  </p>
+  <div class="flex items-start gap-3">
+    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#30363d]">
+      <% if @market.image_url.present? %>
+        <%= image_tag @market.image_url, alt: "", class: "h-12 w-12 object-cover", loading: "lazy" %>
+      <% else %>
+        <svg class="h-5 w-5 text-[#7d8590]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      <% end %>
+    </div>
+    <p class="min-w-0 flex-1 line-clamp-3 text-sm font-semibold leading-snug text-[#e6edf3]">
+      <%= @market.question %>
+    </p>
+  </div>
 
   <div class="flex items-center gap-2">
     <span class="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold <%= risk_pill_classes %>">
