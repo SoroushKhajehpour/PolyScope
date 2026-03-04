@@ -35,14 +35,15 @@ class MarketsController < ApplicationController
   def hydrate_from_search(query)
     client = PolymarketClient.new
     response = client.search(query)
-    market_hashes = response["events"].to_a.flat_map { |e| e["markets"] || [] }
 
-    market_hashes.each do |hash|
-      attrs = PolymarketMarketMapper.call(hash)
-      next if attrs[:polymarket_id].blank?
+    response["events"].to_a.each do |event|
+      (event["markets"] || []).each do |market_hash|
+        attrs = PolymarketMarketMapper.call(market_hash, event: event)
+        next if attrs[:polymarket_id].blank?
 
-      market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
-      market.update!(attrs)
+        market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
+        market.update!(attrs)
+      end
     end
   rescue Faraday::Error => e
     Rails.logger.warn("[MarketsController] search hydration failed: #{e.message}, using local results only")
