@@ -1,9 +1,9 @@
-<a href="#" class="flex cursor-pointer flex-col gap-3 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-4 transition-all duration-150 hover:border-[#3b82f6] hover:shadow-[0_0_0_1px_#3b82f6]">
-  <span class="self-start rounded-full border border-[#2a2a2a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#888888]">
+<a href="#" class="flex cursor-pointer flex-col gap-3 rounded-xl border border-[#30363d] bg-[#161b22] p-4 transition-all duration-150 hover:bg-[#1c2330] hover:border-[#3b82f6] hover:shadow-[0_0_0_1px_#3b82f6]">
+  <span class="self-start rounded-full border border-[#30363d] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#7d8590]">
     <%= category %>
   </span>
 
-  <p class="line-clamp-3 text-sm font-semibold leading-snug text-white">
+  <p class="line-clamp-3 text-sm font-semibold leading-snug text-[#e6edf3]">
     <%= @market.question %>
   </p>
 
@@ -12,12 +12,12 @@
       <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
       <%= risk_label %>
     </span>
-    <span class="text-xs text-[#888888]">Score: <%= risk_score_value || "—" %></span>
+    <span class="text-xs text-[#7d8590]">Score: <%= risk_score_value || "—" %></span>
   </div>
 
-  <div class="border-t border-[#2a2a2a]"></div>
+  <div class="border-t border-[#30363d]"></div>
 
-  <div class="flex justify-between text-xs text-[#888888]">
+  <div class="flex justify-between text-xs text-[#7d8590]">
     <span><%= formatted_volume %> Vol.</span>
     <span><%= formatted_end_date %></span>
   </div>

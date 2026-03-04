@@ -41,7 +41,7 @@ class Market < ApplicationRecord
   def multi_outcome?
     return false unless respond_to?(:outcomes)
 
-    outcomes.is_a?(Array) && outcomes.size > 1
+    outcomes.is_a?(Array) && outcomes.size > 2
   end
 
   def scalar?
