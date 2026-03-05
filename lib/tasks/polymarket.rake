@@ -1,16 +1,6 @@
 # frozen_string_literal: true
 
 namespace :polymarket do
-  # TEMPORARY: Phase 1.1 audit — dump raw Gamma API response for documentation. Remove in Phase 5.
-  desc "Dump raw Gamma API markets response to tmp/gamma_sample.json (limit: 5). No transform."
-  task dump_api_sample: :environment do
-    data = PolymarketClient.new.markets(limit: 5, offset: 0, closed: false)
-    path = Rails.root.join("tmp", "gamma_sample.json")
-    FileUtils.mkdir_p(File.dirname(path))
-    File.write(path, JSON.pretty_generate(data))
-    puts "Dumped #{data.size} market(s) to #{path}"
-  end
-
   desc "Run Polymarket sync once (fetch markets from API into DB). Use for testing step 25."
   task sync: :environment do
     puts "Running PolymarketSyncJob..."
