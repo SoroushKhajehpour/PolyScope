@@ -68,6 +68,19 @@ class MarketNormalizerTest < ActiveSupport::TestCase
     assert_equal 90000.0, m.outcomes[0][:range_max]
   end
 
+  test "normalizes scalar market with min/max/value API aliases" do
+    raw = [{ "id" => "s2", "question" => "Price?", "min" => 100, "max" => 200, "value" => 150, "endDate" => "2026-01-01", "closed" => false }]
+    result = MarketNormalizer.call(raw)
+
+    assert_equal 1, result.size
+    m = result.first
+    assert_equal :scalar, m.market_type
+    assert_equal 1, m.outcomes.size
+    assert_equal 150.0, m.outcomes[0][:value]
+    assert_equal 100.0, m.outcomes[0][:range_min]
+    assert_equal 200.0, m.outcomes[0][:range_max]
+  end
+
   test "skips entries with blank id" do
     raw = [{ "id" => "", "question" => "No id" }, { "id" => "123", "question" => "OK", "outcomes" => "[\"Yes\", \"No\"]", "outcomePrices" => "[0.5, 0.5]" }]
     result = MarketNormalizer.call(raw)

@@ -168,6 +168,7 @@ class MarketNormalizer
       end
     end
 
+    # Step 2.3: Scalar — one outcome with value, range_min, range_max (Phase 1: scalarLow/scalarHigh/scalar or min/max/value).
     def build_scalar_outcomes(hash)
       min = parse_decimal(hash["scalarLow"] || hash["min"])
       max = parse_decimal(hash["scalarHigh"] || hash["max"])
