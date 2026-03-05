@@ -21,6 +21,15 @@
         <span class="text-lg font-bold" style="color: <%= binary_bar_color %>"><%= binary_percentage %></span>
         <span class="text-[10px] text-[#7d8590]">chance</span>
       </div>
+    <% elsif @market.market_type == "multi_outcome" && multi_outcome_entries.any? %>
+      <div class="shrink-0 w-24 <%= 'max-h-20 overflow-y-auto' if multi_outcome_scrollable? %> flex flex-col gap-1 text-right">
+        <% multi_outcome_entries.each do |entry| %>
+          <div class="flex items-center justify-end gap-2 text-[#e6edf3]">
+            <span class="min-w-0 truncate text-xs" title="<%= entry[:label] %>"><%= entry[:label] %></span>
+            <span class="text-xs font-semibold text-[#7d8590]"><%= format('%.0f%%', entry[:probability] * 100) %></span>
+          </div>
+        <% end %>
+      </div>
     <% end %>
   </div>
 

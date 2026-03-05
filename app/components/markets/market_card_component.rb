@@ -85,5 +85,22 @@ module Markets
         "#ef4444"
       end
     end
+
+    # Multi-outcome: list of { label:, probability: } for display (supports string or symbol keys from jsonb).
+    def multi_outcome_entries
+      return [] unless @market.market_type == "multi_outcome" && @market.outcomes.is_a?(Array)
+
+      @market.outcomes.filter_map do |o|
+        prob = o["probability"] || o[:probability] || o["price"] || o[:price]
+        next if prob.nil?
+
+        label = (o["label"] || o[:label]).to_s.presence || "Option"
+        { label: label, probability: prob.to_f }
+      end
+    end
+
+    def multi_outcome_scrollable?
+      multi_outcome_entries.size > 2
+    end
   end
 end
