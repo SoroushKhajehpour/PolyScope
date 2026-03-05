@@ -2,9 +2,23 @@
 
 # Maps a Gamma API market hash to attributes for Market (find_or_create_by / update).
 # Used by PolymarketSyncJob and by search hydration in MarketsController.
+#
+# --- Step 1.2 findings (known bugs / gaps) ---
+# - Market type is NOT inferred here. Market model infers it in before_save via detect_market_type
+#   (yes_price/no_price => binary, outcomes.size > 2 => multi_outcome, min/max_value => scalar).
+#   So we never set market_type in attrs; type can be wrong if outcomes/jsonb shape is wrong.
+# - Outcome/probability: we set yes_price/no_price from first two outcomePrices and optionally
+#   set attrs[:outcomes] from outcomes_from. outcomes_from only returns when labels.size > 2,
+#   so binary markets never get outcomes jsonb set here; Market then infers binary from yes/no.
+#   If API returns one record per outcome (N flat records), we'd create N Market rows with no grouping.
+# - No grouping key is stored: event id (events[0].id) and conditionId are never written to Market;
+#   we have no group_id column yet, so "inner" markets under one event cannot be associated.
 class PolymarketMarketMapper
   class << self
     def call(hash, event: nil)
+      # Outcome prices: we always take first two as yes_price, no_price. API may send JSON string
+      # "[\"0.137\", \"0.863\"]" — we split on comma so we get both; no JSON.parse here so
+      # we rely on comma separation. Can misclassify if outcomes string has different format.
       yes_price, no_price = parse_outcome_prices(hash["outcomePrices"])
       attrs = {
         polymarket_id: hash["id"]&.to_s,
@@ -18,6 +32,9 @@ class PolymarketMarketMapper
         volume: parse_volume(hash["volumeNum"] || hash["volume"]),
         image_url: image_url_from(hash, event)
       }
+      # outcomes jsonb only set when outcomes_from returns non-nil — i.e. when parsed outcomes
+      # has > 2 labels. So binary markets never get outcomes stored by mapper; multi-outcome
+      # only if a single API item has 3+ outcomes. No grouping of sibling records.
       attrs[:outcomes] = outcomes_from(hash) if outcomes_from(hash).present?
       attrs.merge!(scalar_attrs_from(hash))
       attrs.compact
@@ -25,6 +42,8 @@ class PolymarketMarketMapper
 
     private
 
+    # Returns [yes_price, no_price] from first two values. outcomePrices can be JSON string
+    # "[\"0.137\", \"0.863\"]" — we split on "," so we get two floats. Does not parse JSON.
     def parse_outcome_prices(str)
       return [nil, nil] if str.blank?
 
@@ -79,8 +98,11 @@ class PolymarketMarketMapper
     end
 
     # Returns array of { "label" => String, "price" => Float } for multi-outcome markets.
-    # Gamma API: outcomes = array of labels, outcomePrices = comma-separated or array of prices.
-    # Only returns when there are more than 2 outcomes (otherwise binary yes/no is used).
+    # BUG: API often sends outcomes as JSON string "[\"Yes\", \"No\"]" — we do not parse it,
+    # so labels can be nil (is_a?(Array) fails). We only populate outcomes when labels.size > 2,
+    # so binary markets never get outcomes jsonb; multi-outcome only if one API record has 3+.
+    # If API returned N flat records (one per outcome) we'd map each to a separate Market row
+    # with no grouping key stored.
     def outcomes_from(hash)
       labels = hash["outcomes"]
       labels = labels.is_a?(Array) ? labels : nil

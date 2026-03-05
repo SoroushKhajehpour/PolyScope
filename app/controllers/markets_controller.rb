@@ -32,6 +32,11 @@ class MarketsController < ApplicationController
 
   private
 
+  # Step 1.2: Search returns events => [ { markets => [...] } ]. We iterate each event's markets
+  # and map with event context (for category/image). Same as sync: one market_hash => one Market
+  # row; no group_id/event id stored. When we load one "outer" event we do get all its inner
+  # markets in event["markets"], and we persist each — but we don't store the event id so we
+  # can't later query "all markets for this event".
   def hydrate_from_search(query)
     client = PolymarketClient.new
     response = client.search(query)
