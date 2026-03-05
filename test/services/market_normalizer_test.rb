@@ -127,4 +127,29 @@ class MarketNormalizerTest < ActiveSupport::TestCase
     assert_equal :multi_outcome, result[1].market_type
     assert_equal 3, result[1].outcomes.size
   end
+
+  test "to_market_attributes maps binary struct to Market attrs with yes_price and no_price" do
+    raw = load_fixture("binary")
+    normalized = MarketNormalizer.call(raw).first
+    attrs = MarketNormalizer.to_market_attributes(normalized)
+
+    assert_equal "531202", attrs[:polymarket_id]
+    assert_equal "21662", attrs[:group_id]
+    assert_equal "binary", attrs[:market_type]
+    assert_equal 0.137, attrs[:yes_price]
+    assert_equal 0.863, attrs[:no_price]
+    assert_equal 2, attrs[:outcomes].size
+  end
+
+  test "to_market_attributes maps scalar struct to Market attrs with min_value, max_value, current_value" do
+    raw = load_fixture("scalar")
+    normalized = MarketNormalizer.call(raw).first
+    attrs = MarketNormalizer.to_market_attributes(normalized)
+
+    assert_equal "scalar456", attrs[:polymarket_id]
+    assert_equal "scalar", attrs[:market_type]
+    assert_equal 60000.0, attrs[:min_value]
+    assert_equal 90000.0, attrs[:max_value]
+    assert_equal 72400.5, attrs[:current_value]
+  end
 end

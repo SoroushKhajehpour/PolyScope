@@ -16,6 +16,8 @@ MarketNormalized = Struct.new(
   :end_date,
   :status,
   :resolution_criteria,
+  :category,
+  :image_url,
   keyword_init: true
 )
 
@@ -57,6 +59,7 @@ class MarketNormalizer
       end_date = parse_time(first["endDate"] || first["endDateIso"])
       status = hashes.any? { |h| h["closed"] != true } ? "active" : "closed"
 
+      event = first.dig("events", 0)
       MarketNormalized.new(
         polymarket_id: polymarket_id,
         group_id: group_id,
@@ -66,7 +69,9 @@ class MarketNormalizer
         volume: volume.positive? ? volume : nil,
         end_date: end_date,
         status: status,
-        resolution_criteria: first["resolutionSource"].presence || first["description"].presence
+        resolution_criteria: first["resolutionSource"].presence || first["description"].presence,
+        category: category_from_hash(first, event),
+        image_url: image_url_from_hash(first, event)
       )
     end
 
@@ -100,6 +105,7 @@ class MarketNormalizer
       outcomes = build_outcomes(hash, market_type)
       group_id = hash.dig("events", 0, "id")&.to_s.presence
 
+      event = hash.dig("events", 0)
       MarketNormalized.new(
         polymarket_id: polymarket_id,
         group_id: group_id,
@@ -109,7 +115,9 @@ class MarketNormalizer
         volume: parse_volume(hash["volumeNum"] || hash["volume"]),
         end_date: parse_time(hash["endDate"] || hash["endDateIso"]),
         status: hash["closed"] == true ? "closed" : "active",
-        resolution_criteria: hash["resolutionSource"].presence || hash["description"].presence
+        resolution_criteria: hash["resolutionSource"].presence || hash["description"].presence,
+        category: category_from_hash(hash, event),
+        image_url: image_url_from_hash(hash, event)
       )
     end
 
@@ -222,5 +230,67 @@ class MarketNormalizer
 
       val.to_s.gsub(/[^\d.-]/, "").to_f
     end
+
+    def category_from_hash(hash, event = nil)
+      if event.present?
+        from_event = event["category"].presence || first_tag_label(event["tags"])
+        return from_event if from_event.present?
+      end
+      tags = hash["tags"] || []
+      tag_labels = tags.map { |t| t["label"]&.strip }.reject(&:blank?)
+      return tag_labels.first if tag_labels.present?
+      hash["category"].presence || hash.dig("events", 0, "category").presence
+    end
+
+    def first_tag_label(tags)
+      return nil if tags.blank?
+      tags.each do |t|
+        label = t.is_a?(Hash) ? t["label"]&.strip : t.to_s.strip
+        return label if label.present?
+      end
+      nil
+    end
+
+    def image_url_from_hash(hash, event = nil)
+      url = (event && (event["image"].presence || event["icon"].presence)) ||
+            hash["image"].presence || hash["icon"].presence
+      url.to_s.strip.presence
+    end
+  end
+
+  # Maps a MarketNormalized struct to attributes for Market (upsert). Includes yes_price/no_price
+  # for binary (from first two outcomes), scalar columns for scalar, and string market_type.
+  def self.to_market_attributes(normalized)
+    return {} if normalized.nil? || normalized.polymarket_id.blank?
+
+    attrs = {
+      polymarket_id: normalized.polymarket_id,
+      group_id: normalized.group_id,
+      question: normalized.question,
+      market_type: normalized.market_type&.to_s,
+      outcomes: normalized.outcomes,
+      volume: normalized.volume,
+      end_date: normalized.end_date,
+      status: normalized.status,
+      resolution_criteria: normalized.resolution_criteria,
+      category: normalized.category,
+      image_url: normalized.image_url
+    }
+
+    case normalized.market_type
+    when :binary
+      if normalized.outcomes.is_a?(Array) && normalized.outcomes.size >= 2
+        attrs[:yes_price] = normalized.outcomes[0][:probability]
+        attrs[:no_price] = normalized.outcomes[1][:probability]
+      end
+    when :scalar
+      if normalized.outcomes.is_a?(Array) && (o = normalized.outcomes.first)
+        attrs[:min_value] = o[:range_min]
+        attrs[:max_value] = o[:range_max]
+        attrs[:current_value] = o[:value]
+      end
+    end
+
+    attrs.compact
   end
 end

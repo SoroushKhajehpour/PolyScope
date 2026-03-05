@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
-# Step 1.2: Sync fetches a flat array from GET /markets. Each element is one market (possibly an
-# "inner" market under an event). We do not infer or set market_type here; we do not store event id
-# or group_id, so inner markets (e.g. 4 markets sharing events[0].id "23784") are stored as
-# separate Market rows with no link to the parent event. When one "outer" (event) is conceptually
-# loaded, the API already returns all inner markets in the same page; we persist each by
-# polymarket_id only — no grouping, so UI cannot "load one outer and all inners" by relationship.
+# Step 3.2: Sync fetches raw from GET /markets, normalizes via MarketNormalizer (one struct per
+# logical market; multi-outcome siblings grouped), and upserts by polymarket_id. All inner markets
+# under an event are persisted with group_id so "load one outer and all inners" is queryable.
 class PolymarketSyncJob < ApplicationJob
   PAGE_LIMIT = 100
   MAX_PAGES = 50
@@ -18,19 +15,17 @@ class PolymarketSyncJob < ApplicationJob
     loop do
       break if page >= MAX_PAGES
 
-      # Raw response: array of market hashes. Some items share the same events[0].id (inner markets
-      # under one event). We do not group by event; we process each hash as a separate Market.
       data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false, order: "volume_24hr", ascending: false)
+      active = data.reject { |h| h["closed"] == true }
 
-      data.each do |hash|
-        next if hash["closed"] == true # Only pull in active markets; ignore closed even if API returns them
+      normalized_list = MarketNormalizer.call(active)
+      normalized_list.each do |n|
+        next if n.nil? || n.polymarket_id.blank?
 
-        # One API record => one attrs hash => one Market row. No grouping; event id not stored.
-        attrs = PolymarketMarketMapper.call(hash)
-        next if attrs[:polymarket_id].blank?
-
-        market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
-        market.update!(attrs)
+        attrs = MarketNormalizer.to_market_attributes(n)
+        market = Market.find_or_initialize_by(polymarket_id: attrs[:polymarket_id])
+        market.assign_attributes(attrs)
+        market.save!
       end
 
       break if data.size < PAGE_LIMIT
@@ -42,5 +37,4 @@ class PolymarketSyncJob < ApplicationJob
     Rails.logger.error("[PolymarketSyncJob] #{e.message}")
     raise
   end
-
 end

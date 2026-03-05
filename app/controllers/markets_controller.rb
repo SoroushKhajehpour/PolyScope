@@ -32,28 +32,27 @@ class MarketsController < ApplicationController
 
   private
 
-  # Step 1.2: Search returns events => [ { markets => [...] } ]. We iterate each event's markets
-  # and map with event context (for category/image). Same as sync: one market_hash => one Market
-  # row; no group_id/event id stored. When we load one "outer" event we do get all its inner
-  # markets in event["markets"], and we persist each — but we don't store the event id so we
-  # can't later query "all markets for this event".
+  # Step 3.2: Search returns events => [ { markets => [...] } ]. Flatten to array of market hashes
+  # with event injected so normalizer can set group_id; normalize and upsert by polymarket_id.
+  # All inner markets for each event are persisted (no dropping); group_id links to event.
   def hydrate_from_search(query)
     client = PolymarketClient.new
     response = client.search(query)
 
-    response["events"].to_a.each do |event|
-      (event["markets"] || []).each do |market_hash|
-        next if market_hash["closed"] == true # Only hydrate active markets; skip closed
+    flattened = response["events"].to_a.flat_map do |event|
+      (event["markets"] || []).reject { |m| m["closed"] == true }.map { |m| m.merge("events" => [event]) }
+    end
+    normalized_list = MarketNormalizer.call(flattened)
 
-        attrs = PolymarketMarketMapper.call(market_hash, event: event)
-        next if attrs[:polymarket_id].blank?
+    normalized_list.each do |n|
+      next if n.nil? || n.polymarket_id.blank?
 
-        market = Market.find_or_create_by!(polymarket_id: attrs[:polymarket_id])
-        market.update!(attrs)
-      end
+      attrs = MarketNormalizer.to_market_attributes(n)
+      market = Market.find_or_initialize_by(polymarket_id: attrs[:polymarket_id])
+      market.assign_attributes(attrs)
+      market.save!
     end
   rescue Faraday::Error => e
     Rails.logger.warn("[MarketsController] search hydration failed: #{e.message}, using local results only")
-    # Fall back to local pg_search only; no re-raise
   end
 end
