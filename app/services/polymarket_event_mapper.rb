@@ -25,7 +25,7 @@ class PolymarketEventMapper
           event_question: event&.dig("title").to_s.presence,
           event_image: image_url_from(first, event),
           volume: total_volume.positive? ? total_volume : nil,
-          category: category_from_markets(markets),
+          category: category_for_event(markets, event),
           end_date: parse_time(first["endDate"] || first["endDateIso"]),
           status: markets.any? { |m| !closed?(m) } ? "active" : "closed",
           resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence
@@ -48,7 +48,7 @@ class PolymarketEventMapper
       end
 
       first_market = event_hash["markets"]&.first
-      category = category_from_markets(event_hash["markets"].to_a)
+      category = category_for_event(event_hash["markets"].to_a, event_hash)
       end_date = parse_time(first_market&.dig("endDate") || first_market&.dig("endDateIso") || event_hash["endDate"])
       resolution_criteria = first_market&.dig("resolutionSource").to_s.presence || first_market&.dig("description").to_s.presence || event_hash["description"].to_s.presence
 
@@ -91,9 +91,24 @@ class PolymarketEventMapper
     end
 
     def category_from(hash)
+      return nil unless hash.is_a?(Hash)
       tags = hash["tags"]
       return nil unless tags.is_a?(Array) && tags.first.present?
-      tags.first["label"].to_s.presence
+      tag_label_or_slug(tags.first)
+    end
+
+    # Tag can be { "label" => "Politics", "slug" => "politics" } or a string.
+    def tag_label_or_slug(tag)
+      return tag.to_s.presence if tag.is_a?(String)
+      return nil unless tag.respond_to?(:[])
+      (tag["label"].to_s.presence || tag["slug"].to_s.presence)
+    end
+
+    # Use the first non-nil category from any market in the group, then try event-level tags.
+    def category_for_event(markets_array, event_hash)
+      cat = category_from_markets(markets_array)
+      return cat if cat.present?
+      category_from(event_hash) if event_hash.is_a?(Hash)
     end
 
     # Use the first non-nil category from any market in the group/event.

@@ -9,6 +9,7 @@ class PolymarketSyncJob < ApplicationJob
     client = PolymarketClient.new
     offset = 0
     page = 0
+    seen_event_ids = Set.new
 
     loop do
       break if page >= MAX_PAGES
@@ -20,6 +21,8 @@ class PolymarketSyncJob < ApplicationJob
       event_attrs_list.each do |attrs|
         next if attrs[:event_id].blank? || attrs[:event_question].blank?
         next if attrs[:status] == "closed"
+        next if seen_event_ids.include?(attrs[:event_id])
+        seen_event_ids.add(attrs[:event_id])
 
         market = Market.find_or_initialize_by(event_id: attrs[:event_id])
         market.assign_attributes(attrs)
