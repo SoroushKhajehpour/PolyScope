@@ -49,6 +49,7 @@ group :development do
 end
 
 group :test do
+  gem "minitest", "~> 5.0"
   gem "capybara"
   gem "selenium-webdriver"
 end
@@ -61,3 +62,4 @@ gem "dotenv-rails", groups: [:development, :test]
 
 
 gem "tailwindcss-rails", "~> 4.3"
+
