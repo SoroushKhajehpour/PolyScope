@@ -41,9 +41,9 @@ namespace :polymarket do
     end
 
     if zero_vol.positive?
-      puts "\n--- Zero-volume markets (id, polymarket_id, question, event_id) ---"
+      puts "\n--- Zero-volume markets (id, polymarket_id, event_id, event_question) ---"
       Market.where("COALESCE(volume, 0) <= 0").limit(50).each do |m|
-        puts "  id=#{m.id} polymarket_id=#{m.polymarket_id} event_id=#{m.event_id.inspect} | #{m.question&.truncate(50)}"
+        puts "  id=#{m.id} polymarket_id=#{m.polymarket_id} event_id=#{m.event_id.inspect} | #{m.event_question&.truncate(50)}"
       end
       puts "  ... (showing up to 50)" if zero_vol > 50
     end

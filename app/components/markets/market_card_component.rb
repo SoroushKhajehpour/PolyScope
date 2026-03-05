@@ -14,7 +14,7 @@ module Markets
     end
 
     def card_title
-      @market.event_question.presence || @market.question.presence || "Market"
+      @market.event_question.presence || "Market"
     end
 
     def image_url
