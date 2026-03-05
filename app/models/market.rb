@@ -77,5 +77,5 @@ class Market < ApplicationRecord
     units
   end
 
-  pg_search_scope :search, against: %i[question event_question category], using: { tsearch: { prefix: true } }
+  pg_search_scope :search, against: %i[event_question category], using: { tsearch: { prefix: true } }
 end
