@@ -56,17 +56,27 @@ module Markets
       "Ends #{@market.end_date.strftime('%b %d')}"
     end
 
-    # Binary probability display (Commit 4)
-    def binary_percentage
-      return nil unless @market.market_type == "binary" && @market.yes_price.present?
+    # Binary probability display: single source of truth from outcomes (first entry = Yes).
+    # Falls back to yes_price for legacy rows or when outcomes are missing.
+    def yes_probability_for_display
+      return @market.yes_price.to_f if @market.yes_price.present?
 
-      format("%.0f%%", @market.yes_price.to_f * 100)
+      return nil unless @market.market_type == "binary" && @market.outcomes.is_a?(Array) && @market.outcomes.size >= 1
+
+      o = @market.outcomes.first
+      (o["probability"] || o[:probability] || o["price"] || o[:price])&.to_f
+    end
+
+    def binary_percentage
+      return nil unless @market.market_type == "binary" && yes_probability_for_display.present?
+
+      format("%.0f%%", yes_probability_for_display * 100)
     end
 
     def binary_bar_color
-      return nil unless @market.yes_price.present?
+      return nil unless yes_probability_for_display.present?
 
-      pct = @market.yes_price.to_f * 100
+      pct = yes_probability_for_display * 100
       if pct > 60
         "#22c55e"
       elsif pct >= 40
