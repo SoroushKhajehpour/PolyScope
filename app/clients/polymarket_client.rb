@@ -1,48 +1,42 @@
 # frozen_string_literal: true
 
 # =============================================================================
-# Gamma API response structure (Phase 1.1 audit — from GET /markets raw payload)
+# Gamma API structure & title bug (Phase 1.1 — from tmp/gamma_markets_raw.json,
+# tmp/gamma_search_raw.json via rake polymarket:dump_raw)
 # =============================================================================
 #
-# Response: array of market objects. No top-level wrapper. Sample in tmp/gamma_sample.json.
+# 1) Event vs market structure
+#    - GET /markets: returns an array of market objects. Each market has an
+#      "events" array (usually one element). events[0] is the parent event.
+#    - GET /public-search: returns { "events" => [ ... ] }. Each event has
+#      "markets" (array of child markets). So search is event-centric; /markets
+#      is market-centric with embedded event via events[0].
 #
-# --- Market type (Binary vs Multi-outcome vs Scalar) ---
-# - No explicit "marketType" or "formatType" in the sampled payload. Type is inferred:
-# - Scalar: presence of scalar range fields — scalarLow, scalarHigh (or min, max), and
-#   current value in scalar (or value, currentValue). One logical market, one record.
-# - Multi-outcome: a single market object whose "outcomes" field parses to an array
-#   of 3+ labels (e.g. ["Trump", "Biden", "Other"]). outcomePrices has same length.
-# - Binary: outcomes parses to exactly two labels (typically ["Yes", "No"]);
-#   outcomePrices is a same-length array of implied probabilities.
+# 2) Exact key for event title
+#    - /markets: events[0].title  (e.g. "BitBoy convicted?" or "Next Supreme Leader of Iran?")
+#    - /public-search: event.title  (same meaning)
 #
-# --- Outcomes representation ---
-# - Top-level on each market: "outcomes" and "outcomePrices" are JSON *strings*
-#   (e.g. outcomes: "[\"Yes\", \"No\"]", outcomePrices: "[\"0.137\", \"0.863\"]").
-# - Parse with JSON.parse to get arrays. Index i in outcomes corresponds to index i
-#   in outcomePrices (probability/price for that outcome).
-# - Not nested; not multiple sibling records per outcome in the sampled /markets response.
-#   Each element of the top-level array is one full market (one conditionId, one question).
+# 3) Event ID, image, category
+#    - Event ID: events[0].id (string, e.g. "21662") or event.id in search.
+#    - Event image: events[0].image or event.image (URL string).
+#    - Category: no top-level "category" on event in sampled payload; tags are
+#      on the market (market.tags[].label). Can use first tag or leave category
+#      from market.
 #
-# --- Where probability lives ---
-# - Per-outcome, in outcomePrices. Same order as outcomes. Values are 0–1 implied
-#   probabilities (often sum to 1 for binary).
+# 4) Child question, volume, link
+#    - Child question: market.question (e.g. "Will there be no new Supreme Leader...").
+#    - Child volume: market.volume (string) or market.volumeNum.
+#    - Link: event.slug or market.slug; Polymarket URLs use slug.
 #
-# --- Scalar fields ---
-# - Range: scalarLow (min), scalarHigh (max). Aliases: min, max.
-# - Current price leaning: scalar, or value, or currentValue.
-#
-# --- Grouping / multi-outcome as N flat records ---
-# - Each market has a unique conditionId (hex string). Each has an "events" array
-#   (often one event); events[0].id is the parent event id. Multiple markets can
-#   share the same event id (e.g. "What will happen before GTA VI?" with many
-#   child markets). Those are distinct markets (different conditionId, different
-#   question), not one multi-outcome market split across rows.
-# - If the API elsewhere returns N flat records that share a conditionId or
-#   groupId (one record per outcome), the grouping key for merging them into
-#   one logical market would be that identifier (conditionId or groupId).
-# - groupItemTitle / groupItemThreshold appear on binary markets under an event
-#   (e.g. "Russia-Ukraine Ceasefire", "Jesus Christ returns") and label the
-#   outcome within the event, not a separate multi-outcome market.
+# 5) Where the bug is (root cause)
+#    - The parent event title (events[0].title) is the correct label for the
+#      card when we show one card per event. We do not store it in a dedicated
+#      column. MarketNormalizer sets question from the child (hash["question"]) or
+#      in merge_group as fallback from first.dig("events", 0, "title"); that
+#      fallback is not persisted as event_question. The card shows @market.question,
+#      so we display the child market question instead of the event title. Fix:
+#      add event_id, event_question, event_image; persist events[0].title into
+#      event_question and use that for the card title.
 #
 # =============================================================================
 

@@ -1,6 +1,25 @@
 # frozen_string_literal: true
 
 namespace :polymarket do
+  desc "Fetch raw Gamma API response (markets + search) and write to tmp. Phase 1.1 investigation."
+  task dump_raw: :environment do
+    client = PolymarketClient.new
+    path_markets = Rails.root.join("tmp", "gamma_markets_raw.json")
+    path_search = Rails.root.join("tmp", "gamma_search_raw.json")
+    FileUtils.mkdir_p(Rails.root.join("tmp"))
+
+    data_markets = client.markets(limit: 20, offset: 0, closed: false)
+    File.write(path_markets, JSON.pretty_generate(data_markets))
+    puts "Written #{data_markets.size} market(s) to #{path_markets}"
+
+    data_search = client.search("supreme leader iran", limit_per_type: 5)
+    File.write(path_search, JSON.pretty_generate(data_search))
+    events_count = data_search["events"]&.size || 0
+    puts "Written #{events_count} event(s) to #{path_search}"
+
+    puts "\nInspect the JSON files to confirm event/market structure and key paths for title."
+  end
+
   desc "Report display groups and zero-volume markets for debugging."
   task report_groups: :environment do
     total = Market.count
