@@ -1,0 +1,15 @@
+[
+  {
+    "id": "scalar456",
+    "question": "BTC price at end of 2026?",
+    "conditionId": "0xdef",
+    "scalarLow": 60000,
+    "scalarHigh": 90000,
+    "scalar": 72400.5,
+    "endDate": "2026-12-31T23:59:59Z",
+    "volumeNum": 50000,
+    "closed": false,
+    "resolutionSource": "CoinGecko",
+    "events": [{"id": "111"}]
+  }
+]

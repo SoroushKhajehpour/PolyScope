@@ -1,0 +1,14 @@
+[
+  {
+    "id": "multi123",
+    "question": "Who wins the election?",
+    "conditionId": "0xabc",
+    "outcomes": "[\"Trump\", \"Biden\", \"Other\"]",
+    "outcomePrices": "[\"0.44\", \"0.42\", \"0.14\"]",
+    "endDate": "2026-11-05T23:00:00Z",
+    "volumeNum": 100000,
+    "closed": false,
+    "resolutionSource": "Official results",
+    "events": [{"id": "999"}]
+  }
+]

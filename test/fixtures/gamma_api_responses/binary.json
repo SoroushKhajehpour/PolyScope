@@ -1,0 +1,14 @@
+[
+  {
+    "id": "531202",
+    "question": "BitBoy convicted?",
+    "conditionId": "0xb48621f7eba07b0a3eeabc6afb09ae42490239903997b9d412b0f69aeb040c8b",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.137\", \"0.863\"]",
+    "endDate": "2026-03-31T12:00:00Z",
+    "volumeNum": 48535.095476,
+    "closed": false,
+    "resolutionSource": "Court records",
+    "events": [{"id": "21662"}]
+  }
+]
