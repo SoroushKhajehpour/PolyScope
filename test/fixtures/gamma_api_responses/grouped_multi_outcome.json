@@ -1,0 +1,41 @@
+[
+  {
+    "id": "g1-a",
+    "conditionId": "0xgrouped123",
+    "groupId": "0xgrouped123",
+    "question": "Option A wins?",
+    "groupItemTitle": "Option A",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.5\", \"0.5\"]",
+    "endDate": "2026-06-01T00:00:00Z",
+    "volumeNum": 1000,
+    "closed": false,
+    "events": [{"id": "ev1", "title": "Who wins?"}]
+  },
+  {
+    "id": "g1-b",
+    "conditionId": "0xgrouped123",
+    "groupId": "0xgrouped123",
+    "question": "Option B wins?",
+    "groupItemTitle": "Option B",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.3\", \"0.7\"]",
+    "endDate": "2026-06-01T00:00:00Z",
+    "volumeNum": 2000,
+    "closed": false,
+    "events": [{"id": "ev1", "title": "Who wins?"}]
+  },
+  {
+    "id": "g1-c",
+    "conditionId": "0xgrouped123",
+    "groupId": "0xgrouped123",
+    "question": "Option C wins?",
+    "groupItemTitle": "Option C",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.2\", \"0.8\"]",
+    "endDate": "2026-06-01T00:00:00Z",
+    "volumeNum": 500,
+    "closed": false,
+    "events": [{"id": "ev1", "title": "Who wins?"}]
+  }
+]

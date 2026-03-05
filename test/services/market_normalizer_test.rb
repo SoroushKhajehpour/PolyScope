@@ -82,4 +82,36 @@ class MarketNormalizerTest < ActiveSupport::TestCase
     assert_equal "531202", result[0].polymarket_id
     assert_equal "multi123", result[1].polymarket_id
   end
+
+  test "groups multiple records with same conditionId into one multi_outcome struct" do
+    raw = load_fixture("grouped_multi_outcome")
+    result = MarketNormalizer.call(raw)
+
+    assert_equal 1, result.size
+    m = result.first
+    assert_equal "0xgrouped123", m.polymarket_id
+    assert_equal "ev1", m.group_id
+    assert_equal "Option A wins?", m.question
+    assert_equal :multi_outcome, m.market_type
+    assert_equal 3, m.outcomes.size
+    assert_equal "Option A", m.outcomes[0][:label]
+    assert_equal 0.5, m.outcomes[0][:probability]
+    assert_equal "Option B", m.outcomes[1][:label]
+    assert_equal 0.3, m.outcomes[1][:probability]
+    assert_equal "Option C", m.outcomes[2][:label]
+    assert_equal 0.2, m.outcomes[2][:probability]
+    assert_equal 3500.0, m.volume
+  end
+
+  test "mixed response: single binary plus grouped multi yields two structs" do
+    raw = load_fixture("binary") + load_fixture("grouped_multi_outcome")
+    result = MarketNormalizer.call(raw)
+
+    assert_equal 2, result.size
+    assert_equal "531202", result[0].polymarket_id
+    assert_equal :binary, result[0].market_type
+    assert_equal "0xgrouped123", result[1].polymarket_id
+    assert_equal :multi_outcome, result[1].market_type
+    assert_equal 3, result[1].outcomes.size
+  end
 end

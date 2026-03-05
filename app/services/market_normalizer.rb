@@ -22,14 +22,73 @@ MarketNormalized = Struct.new(
 class MarketNormalizer
   class << self
     # @param raw_api_response [Array<Hash>] Array of market hashes from GET /markets (or flattened from events)
-    # @return [Array<MarketNormalized>] One struct per logical market (no grouping yet in 2.1)
+    # @return [Array<MarketNormalized>] One struct per logical market; siblings with same conditionId/groupId merged (Step 2.2)
     def call(raw_api_response)
       return [] unless raw_api_response.is_a?(Array)
 
-      raw_api_response.filter_map { |hash| normalize_one(hash) }
+      grouped = raw_api_response.group_by { |h| grouping_key(h) }
+      grouped.filter_map do |_key, hashes|
+        if hashes.size == 1
+          normalize_one(hashes.first)
+        else
+          merge_group(hashes)
+        end
+      end
     end
 
     private
+
+    def grouping_key(hash)
+      hash["conditionId"].presence || hash["groupId"].presence || hash["id"]&.to_s
+    end
+
+    def merge_group(hashes)
+      first = hashes.first
+      condition_id = first["conditionId"].presence || first["groupId"].presence
+      polymarket_id = condition_id.presence || first["id"]&.to_s
+      return nil if polymarket_id.blank?
+
+      outcomes = hashes.flat_map { |h| outcome_entries_for_merge(h) }.compact
+      return nil if outcomes.empty?
+
+      group_id = first.dig("events", 0, "id")&.to_s.presence
+      question = first["question"].presence || first.dig("events", 0, "title").presence
+      volume = hashes.sum { |h| parse_volume(h["volumeNum"] || h["volume"]) || 0 }
+      end_date = parse_time(first["endDate"] || first["endDateIso"])
+      status = hashes.any? { |h| h["closed"] != true } ? "active" : "closed"
+
+      MarketNormalized.new(
+        polymarket_id: polymarket_id,
+        group_id: group_id,
+        question: question,
+        market_type: :multi_outcome,
+        outcomes: outcomes,
+        volume: volume.positive? ? volume : nil,
+        end_date: end_date,
+        status: status,
+        resolution_criteria: first["resolutionSource"].presence || first["description"].presence
+      )
+    end
+
+    # Outcome entries from one API record when merging a group. When record has groupItemTitle (event-child),
+    # treat as one outcome: label = groupItemTitle, probability = yes (first) price. When record has 3+
+    # outcomes (already multi), return all. Otherwise one outcome from question + first price.
+    def outcome_entries_for_merge(hash)
+      labels = parse_outcomes_array(hash["outcomes"])
+      prices = parse_prices_array(hash["outcomePrices"])
+      # Already multi-outcome: add all
+      if labels.is_a?(Array) && prices.is_a?(Array) && labels.size == prices.size && labels.size > 2
+        return labels.each_with_index.map do |label, i|
+          { label: label.to_s.strip.presence || "Option #{i + 1}", probability: prices[i].to_f }
+        end
+      end
+      # One outcome per record: groupItemTitle (or question) + first (Yes) price
+      label = hash["groupItemTitle"].presence || hash["question"].presence
+      price = prices&.first
+      return [] if label.blank? || price.nil?
+
+      [{ label: label.to_s.strip, probability: price.to_f }]
+    end
 
     def normalize_one(hash)
       return nil if hash.blank?
