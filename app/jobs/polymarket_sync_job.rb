@@ -15,7 +15,7 @@ class PolymarketSyncJob < ApplicationJob
     loop do
       break if page >= MAX_PAGES
 
-      data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false, order: "volume_24hr", ascending: false)
+      data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false)
       active = data.reject { |h| h["closed"] == true }
 
       normalized_list = MarketNormalizer.call(active)
