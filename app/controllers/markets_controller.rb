@@ -28,7 +28,7 @@ class MarketsController < ApplicationController
       scope = scope.search(params[:q])
     end
 
-    @markets = scope.limit(8)
+    @display_units = Market.display_units_from_markets(scope.limit(8).to_a)
     render partial: "markets/live_search_results", layout: false
   end
 

@@ -57,6 +57,27 @@ class Market < ApplicationRecord
     { display_units: display_units, pagination: pagination }
   end
 
+  # Build display_units from an array of markets (e.g. for live search). Preserves order of first occurrence.
+  def self.display_units_from_markets(markets_array)
+    return [] if markets_array.blank?
+
+    seen_group_ids = []
+    units = []
+    markets_array.each do |m|
+      gid = m.group_id.presence
+      if gid.present?
+        unless seen_group_ids.include?(gid)
+          seen_group_ids << gid
+          group_markets = markets_array.select { |x| x.group_id.presence == gid }
+          units << { type: :group, group_id: gid, markets: group_markets }
+        end
+      else
+        units << { type: :standalone, market: m }
+      end
+    end
+    units
+  end
+
   pg_search_scope :search, against: %i[question category], using: { tsearch: { prefix: true } }
 
   # Returns "binary" | "multi_outcome" | "scalar" so the card can choose probability UI.

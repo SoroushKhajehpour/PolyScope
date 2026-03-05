@@ -10,11 +10,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <% @display_units.each do |unit| %>
         <% if unit[:type] == :group %>
-          <% title = unit[:markets].first&.question %>
-          <div class="rounded-xl border border-[#30363d] bg-[#161b22] p-4">
-            <p class="text-sm font-semibold text-[#e6edf3]"><%= title || "Event" %></p>
-            <p class="mt-1 text-xs text-[#7d8590]"><%= unit[:markets].size %> market(s)</p>
-          </div>
+          <%= render Markets::EventGroupCardComponent.new(markets: unit[:markets], title: unit[:markets].first&.question) %>
         <% else %>
           <%= render Markets::MarketCardComponent.new(market: unit[:market]) %>
         <% end %>
