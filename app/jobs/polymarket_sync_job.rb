@@ -19,6 +19,7 @@ class PolymarketSyncJob < ApplicationJob
 
       event_attrs_list.each do |attrs|
         next if attrs[:event_id].blank? || attrs[:event_question].blank?
+        next if attrs[:status] == "closed"
 
         market = Market.find_or_initialize_by(event_id: attrs[:event_id])
         market.assign_attributes(attrs)

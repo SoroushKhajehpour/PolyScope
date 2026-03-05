@@ -10,7 +10,7 @@ class PolymarketEventMapper
     def build_events_from_markets(market_hashes)
       return [] unless market_hashes.is_a?(Array)
 
-      active = market_hashes.reject { |h| h["closed"] == true }
+      active = market_hashes.reject { |h| closed?(h) }
       grouped = active.group_by { |h| event_id_from_market(h) }
       grouped.delete_if { |eid, _| eid.blank? }
 
@@ -27,7 +27,7 @@ class PolymarketEventMapper
           volume: total_volume.positive? ? total_volume : nil,
           category: category_from(first),
           end_date: parse_time(first["endDate"] || first["endDateIso"]),
-          status: markets.any? { |m| m["closed"] != true } ? "active" : "closed",
+          status: markets.any? { |m| !closed?(m) } ? "active" : "closed",
           resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence
         }.compact
       end
@@ -61,12 +61,17 @@ class PolymarketEventMapper
         volume: volume,
         category: category,
         end_date: end_date,
-        status: event_hash["closed"] == true ? "closed" : "active",
+        status: closed?(event_hash) ? "closed" : "active",
         resolution_criteria: resolution_criteria
       }.compact
     end
 
     private
+
+    def closed?(hash)
+      v = hash["closed"]
+      v == true || v.to_s.casecmp?("true")
+    end
 
     def event_id_from_market(hash)
       hash.dig("events", 0, "id")&.to_s.presence
