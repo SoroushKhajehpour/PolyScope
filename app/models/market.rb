@@ -1,51 +1,53 @@
 class Market < ApplicationRecord
   include PgSearch::Model
 
-  MARKET_TYPES = %w[binary multi_outcome scalar].freeze
-
-  validates :market_type, inclusion: { in: MARKET_TYPES }, allow_nil: true
-
   has_one :risk_score, dependent: :destroy
   has_many :disputes, dependent: :destroy
   has_many :clarifications, dependent: :destroy
 
-  before_save :set_market_type, if: :market_type_blank?
-
   scope :with_volume, -> { where("COALESCE(volume, 0) > 0") }
 
-  PER_PAGE_GROUPS = 36
+  PER_PAGE_EVENTS = 36
 
-  # Returns { display_units: [...], pagination: { total_pages, current_page, prev_page, next_page } }.
-  # scope: relation with with_volume + risk + search already applied.
-  # Each display unit is { type: :group, group_id:, markets: [...] } or { type: :standalone, market: }.
-  def self.display_groups_page(scope, page: 1, per_page: PER_PAGE_GROUPS)
+  # Returns { display_units: [...], pagination: { ... } }. One card per event (grouped by event_id).
+  # Each unit is { type: :event, market: representative_market, total_volume: sum }.
+  def self.display_events_page(scope, page: 1, per_page: PER_PAGE_EVENTS)
     page = [page.to_i, 1].max
     per_page = [per_page.to_i, 1].max
 
-    group_count = scope.reorder(nil).select("COALESCE(markets.group_id, 'm'||markets.id::text)").distinct.count
-    total_pages = [(group_count.to_f / per_page).ceil, 1].max
+    # Distinct event keys: event_id when present, else fallback to single-market key
+    sub = scope.reorder(nil).select(<<~SQL.squish)
+      markets.id, markets.event_id, markets.event_question, markets.event_image,
+      markets.created_at, markets.category,
+      COALESCE(NULLIF(TRIM(markets.event_id), ''), 'm' || markets.id::text) AS ek,
+      SUM(markets.volume) OVER (PARTITION BY COALESCE(NULLIF(TRIM(markets.event_id), ''), 'm' || markets.id::text)) AS event_volume,
+      MAX(markets.created_at) OVER (PARTITION BY COALESCE(NULLIF(TRIM(markets.event_id), ''), 'm' || markets.id::text)) AS event_max_created_at
+    SQL
+    sub_sql = sub.to_sql
+    event_count_sql = "SELECT COUNT(DISTINCT ek) FROM (#{sub_sql}) AS sub2"
+    event_count = connection.select_value(event_count_sql).to_i
+    total_pages = [(event_count.to_f / per_page).ceil, 1].max
     current_page = [page, total_pages].min
     offset = (current_page - 1) * per_page
 
-    # One row per display group (representative id + group_id), ordered by newest group first.
-    sub = scope.reorder(nil).select(<<~SQL.squish)
-      markets.id, markets.group_id, markets.created_at,
-      COALESCE(markets.group_id, 'm'||markets.id::text) AS gk,
-      MAX(markets.created_at) OVER (PARTITION BY COALESCE(markets.group_id, 'm'||markets.id::text)) AS group_max_created_at
+    ranked_sql = <<~SQL.squish
+      SELECT * FROM (
+        SELECT id, event_id, event_question, event_image, category, ek, event_volume, event_max_created_at,
+               ROW_NUMBER() OVER (PARTITION BY ek ORDER BY created_at DESC) AS rn
+        FROM (#{sub_sql}) AS sub2
+      ) AS ranked
+      WHERE rn = 1
+      ORDER BY event_max_created_at DESC
+      LIMIT #{per_page.to_i} OFFSET #{offset.to_i}
     SQL
-    sub_sql = sub.to_sql
-    ranked = "SELECT * FROM (SELECT id, group_id, gk, group_max_created_at, ROW_NUMBER() OVER (PARTITION BY gk ORDER BY created_at DESC) AS rn FROM (#{sub_sql}) AS sub2) AS ranked WHERE rn = 1 ORDER BY group_max_created_at DESC LIMIT #{per_page.to_i} OFFSET #{offset.to_i}"
-    rows = connection.select_all(ranked).to_a
+    rows = connection.select_all(ranked_sql).to_a
 
     display_units = rows.map do |row|
-      gid = row["group_id"].presence
-      if gid.present?
-        markets = scope.where(group_id: gid).order(created_at: :desc).to_a
-        { type: :group, group_id: gid, markets: markets }
-      else
-        market = scope.find(row["id"])
-        { type: :standalone, market: market }
-      end
+      event_id = row["event_id"].to_s.presence
+      total_volume = row["event_volume"].to_f
+      market = scope.find(row["id"])
+      # Allow card to show event_question and total_volume
+      { type: :event, market: market, total_volume: total_volume }
     end
 
     pagination = {
@@ -57,65 +59,23 @@ class Market < ApplicationRecord
     { display_units: display_units, pagination: pagination }
   end
 
-  # Build display_units from an array of markets (e.g. for live search). Preserves order of first occurrence.
+  # Build display_units from an array of markets for live search. One unit per event_id (first occurrence).
   def self.display_units_from_markets(markets_array)
     return [] if markets_array.blank?
 
-    seen_group_ids = []
+    seen = []
     units = []
     markets_array.each do |m|
-      gid = m.group_id.presence
-      if gid.present?
-        unless seen_group_ids.include?(gid)
-          seen_group_ids << gid
-          group_markets = markets_array.select { |x| x.group_id.presence == gid }
-          units << { type: :group, group_id: gid, markets: group_markets }
-        end
-      else
-        units << { type: :standalone, market: m }
-      end
+      ek = m.event_id.presence || "m#{m.id}"
+      next if seen.include?(ek)
+      seen << ek
+      same_event = markets_array.select { |x| (x.event_id.presence || "m#{x.id}") == ek }
+      rep = same_event.first
+      total_volume = same_event.sum { |x| x.volume.to_f }
+      units << { type: :event, market: rep, total_volume: total_volume }
     end
     units
   end
 
-  pg_search_scope :search, against: %i[question category], using: { tsearch: { prefix: true } }
-
-  # Returns "binary" | "multi_outcome" | "scalar" so the card can choose probability UI.
-  def detect_market_type
-    if multi_outcome?
-      "multi_outcome"
-    elsif scalar?
-      "scalar"
-    elsif binary?
-      "binary"
-    else
-      "binary"
-    end
-  end
-
-  private
-
-  def market_type_blank?
-    market_type.blank?
-  end
-
-  def set_market_type
-    self.market_type = detect_market_type
-  end
-
-  def binary?
-    yes_price.present? && no_price.present?
-  end
-
-  def multi_outcome?
-    return false unless respond_to?(:outcomes)
-
-    outcomes.is_a?(Array) && outcomes.size > 2
-  end
-
-  def scalar?
-    return false unless respond_to?(:min_value) && respond_to?(:max_value)
-
-    min_value.present? && max_value.present?
-  end
+  pg_search_scope :search, against: %i[question event_question category], using: { tsearch: { prefix: true } }
 end

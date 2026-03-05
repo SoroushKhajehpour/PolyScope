@@ -2,13 +2,6 @@
   <p class="px-4 py-3 text-sm text-[#888888]">No markets found</p>
 <% else %>
   <% @display_units.each do |unit| %>
-    <% if unit[:type] == :group %>
-      <%= link_to "#", class: "flex cursor-pointer flex-col gap-2 border-b border-[#2a2a2a] px-4 py-3 text-left transition-colors duration-100 last:border-b-0 hover:bg-[#252525]" do %>
-        <p class="text-sm font-medium text-white"><%= unit[:markets].first&.question&.truncate(50) || "Event" %></p>
-        <p class="text-xs text-[#888888]"><%= unit[:markets].size %> market(s)</p>
-      <% end %>
-    <% else %>
-      <%= render Markets::MarketSearchRowComponent.new(market: unit[:market]) %>
-    <% end %>
+    <%= render Markets::MarketSearchRowComponent.new(market: unit[:market], total_volume: unit[:total_volume]) %>
   <% end %>
 <% end %>

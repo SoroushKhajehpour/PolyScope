@@ -9,11 +9,7 @@
   <%= turbo_frame_tag "markets_results" do %>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <% @display_units.each do |unit| %>
-        <% if unit[:type] == :group %>
-          <%= render Markets::EventGroupCardComponent.new(markets: unit[:markets], title: unit[:markets].first&.question) %>
-        <% else %>
-          <%= render Markets::MarketCardComponent.new(market: unit[:market]) %>
-        <% end %>
+        <%= render Markets::MarketCardComponent.new(market: unit[:market], total_volume: unit[:total_volume]) %>
       <% end %>
     </div>
 

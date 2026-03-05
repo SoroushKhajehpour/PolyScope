@@ -14,7 +14,7 @@ class MarketsController < ApplicationController
       scope = scope.search(params[:q])
     end
 
-    result = Market.display_groups_page(scope, page: params[:page])
+    result = Market.display_events_page(scope, page: params[:page])
     @display_units = result[:display_units]
     @pagination = result[:pagination]
   end
@@ -34,9 +34,8 @@ class MarketsController < ApplicationController
 
   private
 
-  # Step 3.2: Search returns events => [ { markets => [...] } ]. Flatten to array of market hashes
-  # with event injected so normalizer can set group_id; normalize and upsert by polymarket_id.
-  # All inner markets for each event are persisted (no dropping); group_id links to event.
+  # Search returns events => [ { markets => [...] } ]. Flatten to market hashes with event injected;
+  # one DB row per market; event_id, event_question, event_image from event.
   def hydrate_from_search(query)
     client = PolymarketClient.new
     response = client.search(query)
@@ -44,12 +43,11 @@ class MarketsController < ApplicationController
     flattened = response["events"].to_a.flat_map do |event|
       (event["markets"] || []).reject { |m| m["closed"] == true }.map { |m| m.merge("events" => [event]) }
     end
-    normalized_list = MarketNormalizer.call(flattened)
 
-    normalized_list.each do |n|
-      next if n.nil? || n.polymarket_id.blank?
+    flattened.each do |hash|
+      attrs = PolymarketSyncMapper.to_market_attributes(hash)
+      next if attrs[:polymarket_id].blank?
 
-      attrs = MarketNormalizer.to_market_attributes(n)
       market = Market.find_or_initialize_by(polymarket_id: attrs[:polymarket_id])
       market.assign_attributes(attrs)
       market.save!

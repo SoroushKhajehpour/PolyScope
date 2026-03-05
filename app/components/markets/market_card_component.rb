@@ -1,15 +1,24 @@
 # frozen_string_literal: true
 
 module Markets
-  # Renders a single market card: category, question, risk badge + score, volume, end date.
-  # Used on the markets index in a grid. Pass a Market record with risk_score loaded.
+  # Renders a single event card: category, title (event_question), risk badge, volume, end date.
+  # One card per event; no outcome/probability UI.
   class MarketCardComponent < ViewComponent::Base
-    def initialize(market:)
+    def initialize(market:, total_volume: nil)
       @market = market
+      @total_volume = total_volume
     end
 
     def category
       @market.category.presence || "Uncategorized"
+    end
+
+    def card_title
+      @market.event_question.presence || @market.question.presence || "Market"
+    end
+
+    def image_url
+      @market.event_image.presence
     end
 
     def risk_level
@@ -20,7 +29,6 @@ module Markets
       @market.risk_score&.score
     end
 
-    # Card-style risk pill: dot + label with /10 background and colored text
     def risk_pill_classes
       case risk_level
       when "low" then "bg-green-500/10 text-[#22c55e]"
@@ -33,14 +41,13 @@ module Markets
 
     def risk_label
       return "—" if risk_level.blank?
-
       risk_level.capitalize
     end
 
-    def formatted_volume
-      return "—" unless @market.volume.present?
-
-      num = @market.volume.to_f
+    def display_volume
+      vol = @total_volume || @market.volume
+      return "—" unless vol.present?
+      num = vol.to_f
       if num >= 1_000_000
         "$#{format('%.1f', num / 1_000_000)}M"
       elsif num >= 1_000
@@ -52,94 +59,7 @@ module Markets
 
     def formatted_end_date
       return "—" unless @market.end_date.present?
-
       "Ends #{@market.end_date.strftime('%b %d')}"
-    end
-
-    # Binary probability display: single source of truth from outcomes (first entry = Yes).
-    # Falls back to yes_price for legacy rows or when outcomes are missing.
-    def yes_probability_for_display
-      return @market.yes_price.to_f if @market.yes_price.present?
-
-      return nil unless @market.market_type == "binary" && @market.outcomes.is_a?(Array) && @market.outcomes.size >= 1
-
-      o = @market.outcomes.first
-      (o["probability"] || o[:probability] || o["price"] || o[:price])&.to_f
-    end
-
-    def binary_percentage
-      return nil unless @market.market_type == "binary" && yes_probability_for_display.present?
-
-      format("%.0f%%", yes_probability_for_display * 100)
-    end
-
-    def binary_bar_color
-      return nil unless yes_probability_for_display.present?
-
-      pct = yes_probability_for_display * 100
-      if pct > 60
-        "#22c55e"
-      elsif pct >= 40
-        "#eab308"
-      else
-        "#ef4444"
-      end
-    end
-
-    # Multi-outcome: list of { label:, probability: } for display (supports string or symbol keys from jsonb).
-    def multi_outcome_entries
-      return [] unless @market.market_type == "multi_outcome" && @market.outcomes.is_a?(Array)
-
-      @market.outcomes.filter_map do |o|
-        prob = o["probability"] || o[:probability] || o["price"] || o[:price]
-        next if prob.nil?
-
-        label = (o["label"] || o[:label]).to_s.presence || "Option"
-        { label: label, probability: prob.to_f }
-      end
-    end
-
-    def multi_outcome_scrollable?
-      multi_outcome_entries.size > 2
-    end
-
-    # Scalar: min, max, and current value for range display. From DB columns or first outcome in jsonb.
-    def scalar_range
-      return nil unless @market.market_type == "scalar"
-
-      min = @market.min_value
-      max = @market.max_value
-      current = @market.current_value
-
-      if (min.nil? || max.nil?) && @market.outcomes.is_a?(Array) && @market.outcomes.first.present?
-        o = @market.outcomes.first
-        min = (o["range_min"] || o[:range_min])&.to_f
-        max = (o["range_max"] || o[:range_max])&.to_f
-        current = (o["value"] || o[:value])&.to_f if current.nil?
-      end
-
-      return nil if min.nil? || max.nil?
-
-      { min: min.to_f, max: max.to_f, current: current.to_f }
-    end
-
-    def scalar_range_percent
-      r = scalar_range
-      return nil if r.nil? || r[:max] == r[:min] || r[:current].nil?
-
-      ((r[:current] - r[:min]) / (r[:max] - r[:min]) * 100).clamp(0, 100)
-    end
-
-    def formatted_scalar_value(num)
-      return "—" if num.nil?
-      n = num.to_f
-      if n.abs >= 1_000_000
-        format("%.1fM", n / 1_000_000)
-      elsif n.abs >= 1_000
-        format("%.0fK", n / 1_000)
-      else
-        format("%.0f", n)
-      end
     end
   end
 end
