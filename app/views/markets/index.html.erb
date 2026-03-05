@@ -8,20 +8,28 @@
 
   <%= turbo_frame_tag "markets_results" do %>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <% @markets.each do |market| %>
-        <%= render Markets::MarketCardComponent.new(market: market) %>
+      <% @display_units.each do |unit| %>
+        <% if unit[:type] == :group %>
+          <% title = unit[:markets].first&.question %>
+          <div class="rounded-xl border border-[#30363d] bg-[#161b22] p-4">
+            <p class="text-sm font-semibold text-[#e6edf3]"><%= title || "Event" %></p>
+            <p class="mt-1 text-xs text-[#7d8590]"><%= unit[:markets].size %> market(s)</p>
+          </div>
+        <% else %>
+          <%= render Markets::MarketCardComponent.new(market: unit[:market]) %>
+        <% end %>
       <% end %>
     </div>
 
     <div class="mt-8 flex items-center justify-center gap-4">
-      <% if @markets.prev_page.present? %>
-        <%= link_to "← Prev", root_path(request.query_parameters.merge(page: @markets.prev_page)), data: { turbo_frame: "markets_results" }, class: "no-underline rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white" %>
+      <% if @pagination[:prev_page].present? %>
+        <%= link_to "← Prev", root_path(request.query_parameters.merge(page: @pagination[:prev_page])), data: { turbo_frame: "markets_results" }, class: "no-underline rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white" %>
       <% else %>
         <span class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] opacity-50 cursor-default">← Prev</span>
       <% end %>
-      <span class="text-sm text-[#888888]">Page <%= @markets.current_page %> of <%= [@markets.total_pages, 1].max %></span>
-      <% if @markets.next_page.present? %>
-        <%= link_to "Next →", root_path(request.query_parameters.merge(page: @markets.next_page)), data: { turbo_frame: "markets_results" }, class: "no-underline rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white" %>
+      <span class="text-sm text-[#888888]">Page <%= @pagination[:current_page] %> of <%= [@pagination[:total_pages], 1].max %></span>
+      <% if @pagination[:next_page].present? %>
+        <%= link_to "Next →", root_path(request.query_parameters.merge(page: @pagination[:next_page])), data: { turbo_frame: "markets_results" }, class: "no-underline rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] transition-colors hover:border-[#3b82f6] hover:text-white" %>
       <% else %>
         <span class="rounded-full border border-[#2a2a2a] bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-[#888888] opacity-50 cursor-default">Next →</span>
       <% end %>

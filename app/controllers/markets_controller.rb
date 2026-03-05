@@ -14,7 +14,9 @@ class MarketsController < ApplicationController
       scope = scope.search(params[:q])
     end
 
-    @markets = scope.page(params[:page]).per(36)
+    result = Market.display_groups_page(scope, page: params[:page])
+    @display_units = result[:display_units]
+    @pagination = result[:pagination]
   end
 
   def live_search
