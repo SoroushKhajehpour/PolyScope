@@ -25,7 +25,7 @@ class PolymarketEventMapper
           event_question: event&.dig("title").to_s.presence,
           event_image: image_url_from(first, event),
           volume: total_volume.positive? ? total_volume : nil,
-          category: category_from(first),
+          category: category_from_markets(markets),
           end_date: parse_time(first["endDate"] || first["endDateIso"]),
           status: markets.any? { |m| !closed?(m) } ? "active" : "closed",
           resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence
@@ -48,8 +48,7 @@ class PolymarketEventMapper
       end
 
       first_market = event_hash["markets"]&.first
-      category = nil
-      category = first_market["tags"]&.first&.dig("label").to_s.presence if first_market.is_a?(Hash)
+      category = category_from_markets(event_hash["markets"].to_a)
       end_date = parse_time(first_market&.dig("endDate") || first_market&.dig("endDateIso") || event_hash["endDate"])
       resolution_criteria = first_market&.dig("resolutionSource").to_s.presence || first_market&.dig("description").to_s.presence || event_hash["description"].to_s.presence
 
@@ -95,6 +94,16 @@ class PolymarketEventMapper
       tags = hash["tags"]
       return nil unless tags.is_a?(Array) && tags.first.present?
       tags.first["label"].to_s.presence
+    end
+
+    # Use the first non-nil category from any market in the group/event.
+    def category_from_markets(markets_array)
+      return nil unless markets_array.is_a?(Array)
+      markets_array.each do |m|
+        cat = category_from(m)
+        return cat if cat.present?
+      end
+      nil
     end
 
     def image_url_from(hash, event)
