@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# Fetches GET /markets (and optionally search-hydration elsewhere). One DB row per API market;
-# event_id, event_question, event_image come from events[0].
+# Fetches GET /markets, groups by event_id, and persists one Market row per event (no child market rows).
 class PolymarketSyncJob < ApplicationJob
   PAGE_LIMIT = 100
   MAX_PAGES = 50
@@ -15,13 +14,13 @@ class PolymarketSyncJob < ApplicationJob
       break if page >= MAX_PAGES
 
       data = client.markets(limit: PAGE_LIMIT, offset: offset, closed: false)
-      active = data.reject { |h| h["closed"] == true }
 
-      active.each do |hash|
-        attrs = PolymarketSyncMapper.to_market_attributes(hash)
-        next if attrs[:polymarket_id].blank?
+      event_attrs_list = PolymarketEventMapper.build_events_from_markets(data)
 
-        market = Market.find_or_initialize_by(polymarket_id: attrs[:polymarket_id])
+      event_attrs_list.each do |attrs|
+        next if attrs[:event_id].blank? || attrs[:event_question].blank?
+
+        market = Market.find_or_initialize_by(event_id: attrs[:event_id])
         market.assign_attributes(attrs)
         market.save!
       end

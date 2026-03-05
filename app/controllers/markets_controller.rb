@@ -34,21 +34,16 @@ class MarketsController < ApplicationController
 
   private
 
-  # Search returns events => [ { markets => [...] } ]. Flatten to market hashes with event injected;
-  # one DB row per market; event_id, event_question, event_image from event.
+  # Search returns events => [ { id, title, image, volume, markets => [...] } ]. Persist one Market per event.
   def hydrate_from_search(query)
     client = PolymarketClient.new
     response = client.search(query)
 
-    flattened = response["events"].to_a.flat_map do |event|
-      (event["markets"] || []).reject { |m| m["closed"] == true }.map { |m| m.merge("events" => [event]) }
-    end
+    response["events"].to_a.each do |event_hash|
+      attrs = PolymarketEventMapper.build_event_from_search_event(event_hash)
+      next if attrs[:event_id].blank? || attrs[:event_question].blank?
 
-    flattened.each do |hash|
-      attrs = PolymarketSyncMapper.to_market_attributes(hash)
-      next if attrs[:polymarket_id].blank?
-
-      market = Market.find_or_initialize_by(polymarket_id: attrs[:polymarket_id])
+      market = Market.find_or_initialize_by(event_id: attrs[:event_id])
       market.assign_attributes(attrs)
       market.save!
     end
