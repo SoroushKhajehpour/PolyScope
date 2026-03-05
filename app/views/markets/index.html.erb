@@ -8,8 +8,8 @@
 
   <%= turbo_frame_tag "markets_results" do %>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <% @display_units.each do |unit| %>
-        <%= render Markets::MarketCardComponent.new(market: unit[:market], total_volume: unit[:total_volume]) %>
+      <% @markets.each do |market| %>
+        <%= render Markets::MarketCardComponent.new(market: market, total_volume: nil) %>
       <% end %>
     </div>
 

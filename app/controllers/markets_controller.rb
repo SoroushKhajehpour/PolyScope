@@ -5,18 +5,20 @@ class MarketsController < ApplicationController
 
   def index
     scope = Market.with_volume.includes(:risk_score).order(created_at: :desc)
-    if params[:risk].in?(VALID_RISK_LEVELS)
-      scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] })
-    end
+    scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] }) if params[:risk].in?(VALID_RISK_LEVELS)
 
     if params[:q].present?
       hydrate_from_search(params[:q])
       scope = scope.search(params[:q])
     end
 
-    result = Market.display_events_page(scope, page: params[:page])
-    @display_units = result[:display_units]
-    @pagination = result[:pagination]
+    @markets = scope.page(params[:page]).per(36)
+    @pagination = {
+      total_pages: @markets.total_pages,
+      current_page: @markets.current_page,
+      prev_page: @markets.prev_page,
+      next_page: @markets.next_page
+    }
   end
 
   def live_search
@@ -28,7 +30,7 @@ class MarketsController < ApplicationController
       scope = scope.search(params[:q])
     end
 
-    @display_units = Market.display_units_from_markets(scope.limit(8).to_a)
+    @markets = scope.limit(8).to_a
     render partial: "markets/live_search_results", layout: false
   end
 

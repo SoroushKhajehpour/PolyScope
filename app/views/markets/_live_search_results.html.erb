@@ -1,7 +1,7 @@
-<% if @display_units.empty? %>
+<% if @markets.empty? %>
   <p class="px-4 py-3 text-sm text-[#888888]">No markets found</p>
 <% else %>
-  <% @display_units.each do |unit| %>
-    <%= render Markets::MarketSearchRowComponent.new(market: unit[:market], total_volume: unit[:total_volume]) %>
+  <% @markets.each do |market| %>
+    <%= render Markets::MarketSearchRowComponent.new(market: market, total_volume: nil) %>
   <% end %>
 <% end %>
