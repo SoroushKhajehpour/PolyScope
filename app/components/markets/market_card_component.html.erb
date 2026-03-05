@@ -30,6 +30,16 @@
           </div>
         <% end %>
       </div>
+    <% elsif @market.market_type == "scalar" && scalar_range.present? %>
+      <div class="shrink-0 flex flex-col items-end gap-1 w-24">
+        <span class="text-sm font-bold text-[#e6edf3]"><%= formatted_scalar_value(scalar_range[:current]) %></span>
+        <span class="text-[10px] text-[#7d8590]"><%= formatted_scalar_value(scalar_range[:min]) %> – <%= formatted_scalar_value(scalar_range[:max]) %></span>
+        <% if scalar_range_percent.present? %>
+          <div class="w-full h-1.5 rounded-full bg-[#30363d] overflow-hidden" aria-hidden="true">
+            <div class="h-full rounded-full bg-[#3b82f6]" style="width: <%= scalar_range_percent %>%"></div>
+          </div>
+        <% end %>
+      </div>
     <% end %>
   </div>
 

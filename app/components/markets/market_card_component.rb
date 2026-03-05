@@ -102,5 +102,44 @@ module Markets
     def multi_outcome_scrollable?
       multi_outcome_entries.size > 2
     end
+
+    # Scalar: min, max, and current value for range display. From DB columns or first outcome in jsonb.
+    def scalar_range
+      return nil unless @market.market_type == "scalar"
+
+      min = @market.min_value
+      max = @market.max_value
+      current = @market.current_value
+
+      if (min.nil? || max.nil?) && @market.outcomes.is_a?(Array) && @market.outcomes.first.present?
+        o = @market.outcomes.first
+        min = (o["range_min"] || o[:range_min])&.to_f
+        max = (o["range_max"] || o[:range_max])&.to_f
+        current = (o["value"] || o[:value])&.to_f if current.nil?
+      end
+
+      return nil if min.nil? || max.nil?
+
+      { min: min.to_f, max: max.to_f, current: current.to_f }
+    end
+
+    def scalar_range_percent
+      r = scalar_range
+      return nil if r.nil? || r[:max] == r[:min] || r[:current].nil?
+
+      ((r[:current] - r[:min]) / (r[:max] - r[:min]) * 100).clamp(0, 100)
+    end
+
+    def formatted_scalar_value(num)
+      return "—" if num.nil?
+      n = num.to_f
+      if n.abs >= 1_000_000
+        format("%.1fM", n / 1_000_000)
+      elsif n.abs >= 1_000
+        format("%.0fK", n / 1_000)
+      else
+        format("%.0f", n)
+      end
+    end
   end
 end
