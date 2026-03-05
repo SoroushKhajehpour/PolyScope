@@ -3,6 +3,8 @@ class Market < ApplicationRecord
 
   MARKET_TYPES = %w[binary multi_outcome scalar].freeze
 
+  validates :market_type, inclusion: { in: MARKET_TYPES }, allow_nil: true
+
   has_one :risk_score, dependent: :destroy
   has_many :disputes, dependent: :destroy
   has_many :clarifications, dependent: :destroy
