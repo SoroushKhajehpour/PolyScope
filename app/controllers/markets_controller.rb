@@ -4,7 +4,7 @@ class MarketsController < ApplicationController
   VALID_RISK_LEVELS = %w[low medium high critical].freeze
 
   def index
-    scope = Market.includes(:risk_score).order(created_at: :desc)
+    scope = Market.with_volume.includes(:risk_score).order(created_at: :desc)
     if params[:risk].in?(VALID_RISK_LEVELS)
       scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] })
     end
@@ -18,7 +18,7 @@ class MarketsController < ApplicationController
   end
 
   def live_search
-    scope = Market.includes(:risk_score).order(created_at: :desc)
+    scope = Market.with_volume.includes(:risk_score).order(created_at: :desc)
     scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] }) if params[:risk].in?(VALID_RISK_LEVELS)
 
     if params[:q].present?

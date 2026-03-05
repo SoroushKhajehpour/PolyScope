@@ -11,6 +11,8 @@ class Market < ApplicationRecord
 
   before_save :set_market_type, if: :market_type_blank?
 
+  scope :with_volume, -> { where("COALESCE(volume, 0) > 0") }
+
   pg_search_scope :search, against: %i[question category], using: { tsearch: { prefix: true } }
 
   # Returns "binary" | "multi_outcome" | "scalar" so the card can choose probability UI.
