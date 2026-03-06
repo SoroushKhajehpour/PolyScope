@@ -18,20 +18,20 @@ module Markets
 
     # Risk colors (match RiskBadgeComponent): low green, medium amber, high orange, critical red.
     PILL_COLORS = {
-      "all" => { bg: "bg-[#1a1a1a]", border: "border-[#2a2a2a]", text: "text-[#888888]" },
-      "low" => { bg: "bg-[#22c55e15]", border: "border-[#22c55e50]", text: "text-[#22c55e]" },
-      "medium" => { bg: "bg-[#eab30815]", border: "border-[#eab30850]", text: "text-[#eab308]" },
-      "high" => { bg: "bg-[#f9731615]", border: "border-[#f9731650]", text: "text-[#f97316]" },
-      "critical" => { bg: "bg-[#ef444415]", border: "border-[#ef444450]", text: "text-[#ef4444]" }
+      "all" => { bg: "bg-[#1a1a1a]", text: "text-[#888888]" },
+      "low" => { bg: "bg-[#22c55e15]", text: "text-[#22c55e]" },
+      "medium" => { bg: "bg-[#eab30815]", text: "text-[#eab308]" },
+      "high" => { bg: "bg-[#f9731615]", text: "text-[#f97316]" },
+      "critical" => { bg: "bg-[#ef444415]", text: "text-[#ef4444]" }
     }.freeze
 
     def pill_classes(option)
-      base = "rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+      base = "rounded-full border-0 px-3 py-1.5 text-xs font-medium transition-colors"
       if active?(option)
-        "#{base} border border-transparent bg-[#3b82f6] text-white"
+        "#{base} bg-[#3b82f6] text-white"
       else
         c = PILL_COLORS[option] || PILL_COLORS["all"]
-        "#{base} border #{c[:border]} #{c[:bg]} #{c[:text]} hover:opacity-90"
+        "#{base} #{c[:bg]} #{c[:text]} hover:opacity-90"
       end
     end
 
