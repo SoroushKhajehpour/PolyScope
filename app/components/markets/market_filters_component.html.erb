@@ -4,7 +4,7 @@
       <%= link_to option.capitalize, filter_path(option), data: { turbo_frame: "markets_results" }, class: "no-underline #{pill_classes(option)}" %>
     <% end %>
   </div>
-  <div class="relative z-50 ml-auto shrink-0" id="live_search_wrapper" data-controller="live-search" data-live-search-url="<%= helpers.live_search_path %>" data-root-path="<%= helpers.root_path %>" data-selected-risk="<%= @selected_risk %>">
+  <div class="relative z-40 ml-auto shrink-0" id="live_search_wrapper" data-controller="live-search" data-live-search-url="<%= helpers.live_search_path %>" data-root-path="<%= helpers.root_path %>" data-selected-risk="<%= @selected_risk %>">
     <%= form_with url: helpers.root_path, method: :get, data: { turbo_frame: "markets_results" }, class: "block" do |f| %>
       <%= hidden_field_tag :risk, @selected_risk if @selected_risk != "all" %>
       <div class="relative">
