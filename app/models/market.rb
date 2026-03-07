@@ -2,8 +2,10 @@ class Market < ApplicationRecord
   include PgSearch::Model
 
   has_one :risk_score, dependent: :destroy
+  has_one :market_embedding, dependent: :destroy
   has_many :disputes, dependent: :destroy
   has_many :clarifications, dependent: :destroy
+  has_many :market_description_snapshots, dependent: :destroy
 
   scope :with_volume, -> { where("COALESCE(volume, 0) > 0") }
 
