@@ -28,7 +28,8 @@ class PolymarketEventMapper
           category: category_for_event(markets, event),
           end_date: parse_time(first["endDate"] || first["endDateIso"]),
           status: markets.any? { |m| !closed?(m) } ? "active" : "closed",
-          resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence
+          resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence,
+          condition_id: first["conditionId"].to_s.presence
         }.compact
       end
     end
@@ -61,7 +62,8 @@ class PolymarketEventMapper
         category: category,
         end_date: end_date,
         status: closed?(event_hash) ? "closed" : "active",
-        resolution_criteria: resolution_criteria
+        resolution_criteria: resolution_criteria,
+        condition_id: first_market&.dig("conditionId").to_s.presence
       }.compact
     end
 

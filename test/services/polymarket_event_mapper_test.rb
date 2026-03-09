@@ -10,7 +10,7 @@ class PolymarketEventMapperTest < ActiveSupport::TestCase
 
   test "build_events_from_markets groups by event_id and returns one attrs per event" do
     markets = [
-      { "id" => "m1", "closed" => false, "events" => [{ "id" => "e1", "title" => "Event One", "image" => "https://a.com/1.jpg" }], "volumeNum" => 100, "volume" => "100", "endDate" => "2026-12-31T00:00:00Z", "tags" => [{ "label" => "Politics" }] },
+      { "id" => "m1", "closed" => false, "conditionId" => "0xabc", "events" => [{ "id" => "e1", "title" => "Event One", "image" => "https://a.com/1.jpg" }], "volumeNum" => 100, "volume" => "100", "endDate" => "2026-12-31T00:00:00Z", "tags" => [{ "label" => "Politics" }] },
       { "id" => "m2", "closed" => false, "events" => [{ "id" => "e1", "title" => "Event One", "image" => "https://a.com/1.jpg" }], "volumeNum" => 50, "volume" => "50", "endDate" => "2026-12-31T00:00:00Z", "tags" => [] }
     ]
     result = PolymarketEventMapper.build_events_from_markets(markets)
@@ -24,6 +24,7 @@ class PolymarketEventMapperTest < ActiveSupport::TestCase
     assert_equal 150.0, attrs[:volume]
     assert_equal "Politics", attrs[:category]
     assert_equal "active", attrs[:status]
+    assert_equal "0xabc", attrs[:condition_id]
   end
 
   test "build_events_from_markets skips markets without event_id" do
@@ -40,7 +41,8 @@ class PolymarketEventMapperTest < ActiveSupport::TestCase
       "title" => "Next Supreme Leader of Iran?",
       "image" => "https://example.com/iran.png",
       "volume" => 17_226_438.41,
-      "closed" => false
+      "closed" => false,
+      "markets" => [{ "conditionId" => "0xdef456" }]
     }
     attrs = PolymarketEventMapper.build_event_from_search_event(event)
 
@@ -50,6 +52,7 @@ class PolymarketEventMapperTest < ActiveSupport::TestCase
     assert_equal "https://example.com/iran.png", attrs[:event_image]
     assert_equal 17_226_438.41, attrs[:volume]
     assert_equal "active", attrs[:status]
+    assert_equal "0xdef456", attrs[:condition_id]
   end
 
   test "build_event_from_search_event returns empty if event_id blank" do

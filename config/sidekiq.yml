@@ -15,3 +15,8 @@
       class: ClarificationDetectorJob
       queue: default
       description: "Detect resolution criteria changes and create clarifications"
+    uma_dispute_ingest:
+      every: "6h"
+      class: UmaDisputeIngestJob
+      queue: default
+      description: "Ingest UMA dispute data and build category dispute rates"
