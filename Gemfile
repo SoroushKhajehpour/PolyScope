@@ -15,6 +15,8 @@ gem "view_component"
 
 gem "faraday"
 
+gem "anthropic"
+
 gem "pg_search"
 
 gem "kaminari"
