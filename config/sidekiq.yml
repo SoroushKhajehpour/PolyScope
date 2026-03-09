@@ -10,3 +10,8 @@
       class: PolymarketSyncJob
       queue: default
       description: "Fetch markets from Polymarket API"
+    clarification_detector:
+      every: "2h"
+      class: ClarificationDetectorJob
+      queue: default
+      description: "Detect resolution criteria changes and create clarifications"
