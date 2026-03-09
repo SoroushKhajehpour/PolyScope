@@ -26,7 +26,12 @@ module RiskScorer
 
     # Presence patterns for absence penalty (if none match, add penalty)
     HAS_DATE = /\d{4}-\d{2}-\d{2}|\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4}\b|\b(?:19|20)\d{2}\b/i
-    HAS_SOURCE = /\b(?:according to|as reported by|resolution source|Federal Register|BLS|AP|Reuters|from\s+(?:the\s+)?(?:website|site|url))\b/i
+    # Generic attribution phrases + named sources (agencies, wires, networks) + court/official-result phrases
+    HAS_SOURCE = /
+      \b(?:according\s+to|as\s+reported\s+by|resolution\s+source|from\s+(?:the\s+)?(?:website|site|url))\b
+      |\b(?:Federal\s+Register|BLS|Census\s+Bureau|Fed(?:eral\s+Reserve)?|SEC|FDA|CDC|WHO|AP|Reuters|NBC|CNN|Fox(?:\s+News)?|CBS|ABC|NFL|NBA|FIFA|Chainlink)\b
+      |\b(?:court\s+(?:records?|ruling|decision|filing|order)|official\s+(?:election\s+)?results?|election\s+results?)\b
+    /ix
     HAS_THRESHOLD = /\d+(?:\.\d+)?%|\d+\s*\+\s*|\b(?:above|below|at least|at most|greater than|less than)\s+\d+/i
 
     class << self

@@ -33,5 +33,16 @@ module RiskScorer
       with_date = "Resolution based on credible reporting. By 2025-12-31."
       assert AmbiguityRegexScorer.call(no_date) >= AmbiguityRegexScorer.call(with_date)
     end
+
+    test "expanded HAS_SOURCE: CDC, court records, official election results, NBC/CNN avoid source-absence penalty" do
+      # Minimal text with date+threshold so only source presence varies (no other pattern hits)
+      base = "Resolves by 2025-06-01. Threshold: above 100."
+      without_source = AmbiguityRegexScorer.call(base)
+      # Adding a recognized source phrase should lower score (no +3 absence penalty)
+      assert AmbiguityRegexScorer.call("#{base} CDC data.") < without_source, "CDC data should count as source"
+      assert AmbiguityRegexScorer.call("#{base} Per court records.") < without_source, "court records should count as source"
+      assert AmbiguityRegexScorer.call("#{base} Official election results.") < without_source, "official election results should count as source"
+      assert AmbiguityRegexScorer.call("#{base} NBC and CNN call.") < without_source, "NBC/CNN should count as source"
+    end
   end
 end
