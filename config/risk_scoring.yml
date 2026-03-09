@@ -1,0 +1,39 @@
+# Risk scoring weights and thresholds (six-factor model, 0-100 composite).
+# Override via ENV: RISK_SCORING_* (e.g. RISK_SCORING_GLOBAL_FLOOR=5).
+
+default: &default
+  # Factor max points (must sum to 100)
+  factor_weights:
+    f1_ambiguity: 25
+    f2_source_dep: 20
+    f3_dispute_rate: 20
+    f4_time_spec: 15
+    f5_clarifications: 10
+    f6_similar_outcomes: 10
+
+  # Override gates: floor composite when catastrophic signal present
+  override_gates:
+    ambiguity_floor_threshold: 22   # If F1 > this, floor composite at ambiguity_floor_score
+    ambiguity_floor_score: 60
+    source_floor_score: 50          # Dead/manipulated source
+    similar_floor_score: 50         # Highly similar market was disputed
+    similar_cosine_threshold: 0.85  # Cosine >= this and disputed → floor
+
+  # Global bounds
+  global_floor: 5
+  global_ceiling: 95
+
+  # Missing factor: impute at this % of factor max (pessimistic prior)
+  impute_pessimistic_pct: 60
+
+  # LLM cache busting: bump when rubric/prompt changes
+  prompt_version: "1.0"
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default
