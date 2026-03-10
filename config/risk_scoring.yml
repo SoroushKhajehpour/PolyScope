@@ -11,6 +11,12 @@ default: &default
     f5_clarifications: 10
     f6_similar_outcomes: 10
 
+  # Known-manipulated sources: if cited, apply source_floor override
+  known_manipulated_sources:
+    - Wikipedia
+    - OpenStreetMap
+    - wikimedia
+
   # Override gates: floor composite when catastrophic signal present
   override_gates:
     ambiguity_floor_threshold: 22   # If F1 > this, floor composite at ambiguity_floor_score

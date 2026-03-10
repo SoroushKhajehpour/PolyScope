@@ -41,6 +41,13 @@ class RiskScoringConfigTest < ActiveSupport::TestCase
     assert RiskScoringConfig.prompt_version.present?
   end
 
+  test "known_manipulated_sources returns array" do
+    sources = RiskScoringConfig.known_manipulated_sources
+    assert sources.is_a?(Array)
+    assert_includes sources, "Wikipedia"
+    assert_includes sources, "OpenStreetMap"
+  end
+
   test "convenience gate accessors return expected values" do
     assert_equal 22, RiskScoringConfig.ambiguity_floor_threshold
     assert_equal 60, RiskScoringConfig.ambiguity_floor_score

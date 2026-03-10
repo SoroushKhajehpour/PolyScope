@@ -53,6 +53,10 @@ class RiskScoringConfig
       (override_gates[:similar_cosine_threshold] || 0.85).to_f
     end
 
+    def known_manipulated_sources
+      config[:known_manipulated_sources].to_a.map(&:to_s)
+    end
+
     def reload!
       @config = nil
       config
