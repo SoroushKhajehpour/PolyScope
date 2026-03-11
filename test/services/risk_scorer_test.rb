@@ -21,6 +21,8 @@ class RiskScorerTest < ActiveSupport::TestCase
     assert result.key?(:confidence_tier)
     assert result[:factor_metadata].key?(:similar_market_ids)
     assert result[:factor_metadata].key?(:similar_scores)
+    assert result[:factor_metadata].key?(:confidence_tier)
+    assert %w[high medium low].include?(result[:confidence_tier])
   end
 
   test "call accepts object with resolution_criteria" do
@@ -61,5 +63,25 @@ class RiskScorerTest < ActiveSupport::TestCase
     result = RiskScorer.call(market, persist: false)
     assert result[:score] >= 5, "score should be at least global_floor 5"
     assert result[:score] <= 95, "score should be at most global_ceiling 95"
+  end
+
+  test "confidence_tier high when market is old and has enough factors" do
+    market = Market.create!(
+      event_id: "e1",
+      event_question: "Q?",
+      condition_id: "0x1",
+      category: "Politics",
+      status: "active",
+      resolution_criteria: "Resolved by official source. By 2025-06-01.",
+      created_at: 10.days.ago
+    )
+    result = RiskScorer.call(market, persist: false)
+    assert %w[high medium low].include?(result[:confidence_tier])
+  end
+
+  test "factor_metadata exposes confidence_tier" do
+    market = Market.new(resolution_criteria: "Federal Register. 2025-06-01.", category: nil)
+    result = RiskScorer.call(market, persist: false)
+    assert_equal result[:confidence_tier], result[:factor_metadata][:confidence_tier]
   end
 end

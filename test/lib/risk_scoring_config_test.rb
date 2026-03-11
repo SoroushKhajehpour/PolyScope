@@ -66,4 +66,14 @@ class RiskScoringConfigTest < ActiveSupport::TestCase
     assert_equal "critical", RiskScoringConfig.level_for_score(76)
     assert_equal "critical", RiskScoringConfig.level_for_score(100)
   end
+
+  test "confidence_tiers returns expected keys" do
+    tiers = RiskScoringConfig.confidence_tiers
+    assert tiers.key?(:high_min_factors)
+    assert tiers.key?(:high_min_age_days)
+    assert_equal 5, RiskScoringConfig.high_confidence_min_factors
+    assert_equal 7, RiskScoringConfig.high_confidence_min_age_days
+    assert_equal 3, RiskScoringConfig.medium_confidence_min_factors
+    assert_equal 1, RiskScoringConfig.low_confidence_max_age_days
+  end
 end

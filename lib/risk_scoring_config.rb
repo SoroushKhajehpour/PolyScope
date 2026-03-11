@@ -57,6 +57,26 @@ class RiskScoringConfig
       config[:known_manipulated_sources].to_a.map(&:to_s)
     end
 
+    def confidence_tiers
+      config[:confidence_tiers] || default_confidence_tiers
+    end
+
+    def high_confidence_min_factors
+      (confidence_tiers[:high_min_factors] || 5).to_i
+    end
+
+    def high_confidence_min_age_days
+      (confidence_tiers[:high_min_age_days] || 7).to_i
+    end
+
+    def medium_confidence_min_factors
+      (confidence_tiers[:medium_min_factors] || 3).to_i
+    end
+
+    def low_confidence_max_age_days
+      (confidence_tiers[:low_max_age_days] || 1).to_f
+    end
+
     # Level mapping: score (0-100) → level. From config level_mapping (e.g. low: [0, 25]).
     def level_mapping
       config[:level_mapping] || default_level_mapping
@@ -133,6 +153,15 @@ class RiskScoringConfig
         medium: [26, 50],
         high: [51, 75],
         critical: [76, 100]
+      }
+    end
+
+    def default_confidence_tiers
+      {
+        high_min_factors: 5,
+        high_min_age_days: 7,
+        medium_min_factors: 3,
+        low_max_age_days: 1
       }
     end
   end

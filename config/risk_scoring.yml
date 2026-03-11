@@ -39,6 +39,13 @@ default: &default
   # Missing factor: impute at this % of factor max (pessimistic prior)
   impute_pessimistic_pct: 60
 
+  # Confidence tier: high (5-6 factors, age ≥7d), medium (3-4 factors or 1-7d), low (≤2 factors or <24h)
+  confidence_tiers:
+    high_min_factors: 5
+    high_min_age_days: 7
+    medium_min_factors: 3
+    low_max_age_days: 1
+
   # LLM cache busting: bump when rubric/prompt changes
   prompt_version: "1.0"
 

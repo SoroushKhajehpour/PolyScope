@@ -32,9 +32,11 @@ class RiskScorer
       f5_val = impute(raw_factors[:f5], weights[:f5_clarifications], "f5_clarifications", factors_imputed)
       f6_val = impute(raw_factors[:f6], weights[:f6_similar_outcomes], "f6_similar_outcomes", factors_imputed)
 
-      composite = (f1_val + f2_val + f3_val + f4_val + f5_val + f6_val).round
+      factor_values = { f1: f1_val, f2: f2_val, f3: f3_val, f4: f4_val, f5: f5_val, f6: f6_val }
+      weight_keys = { f1: :f1_ambiguity, f2: :f2_source_dep, f3: :f3_dispute_rate, f4: :f4_time_spec, f5: :f5_clarifications, f6: :f6_similar_outcomes }
+      composite = composite_with_redistribution(factor_values, weight_keys, weights, factors_imputed)
 
-      factor_metadata = f6_result[:factor_metadata] || {}
+      factor_metadata = (f6_result[:factor_metadata] || {}).dup
 
       override_gate_applied = nil
       if f1_val > RiskScoringConfig.ambiguity_floor_threshold
@@ -53,6 +55,7 @@ class RiskScorer
       composite = composite.clamp(RiskScoringConfig.global_floor, RiskScoringConfig.global_ceiling)
       level = RiskScoringConfig.level_for_score(composite)
       confidence_tier = confidence_tier_for(factors_imputed.size, market)
+      factor_metadata[:confidence_tier] = confidence_tier
 
       result = {
         score: composite,
@@ -96,6 +99,20 @@ class RiskScorer
       imputed
     end
 
+    # When all factors present: sum. When any missing: redistribute weight proportionally (composite from available only, scaled to 100).
+    def composite_with_redistribution(factor_values, weight_keys, weights, factors_imputed)
+      present_keys = factor_values.keys.reject { |k| factors_imputed.include?(weight_keys[k].to_s) }
+      if present_keys.size == 6
+        (factor_values[:f1] + factor_values[:f2] + factor_values[:f3] + factor_values[:f4] + factor_values[:f5] + factor_values[:f6]).round
+      elsif present_keys.empty?
+        (RiskScoringConfig.impute_pessimistic_pct.to_f / 100.0 * 100).round
+      else
+        sum_val = present_keys.sum { |k| factor_values[k].to_f }
+        sum_max = present_keys.sum { |k| weights[weight_keys[k]].to_f }
+        (sum_max.positive? ? (sum_val / sum_max * 100.0).round : 0)
+      end
+    end
+
     def similar_disputed_above_threshold?(factor_metadata)
       similar_scores = factor_metadata[:similar_scores] || {}
       threshold = RiskScoringConfig.similar_cosine_threshold
@@ -107,14 +124,19 @@ class RiskScorer
       false
     end
 
+    # HIGH: 5-6 factors and age ≥7d; MEDIUM: 3-4 factors or 1-7d; LOW: ≤2 factors or age < low_max_age_days.
     def confidence_tier_for(imputed_count, market)
-      if imputed_count >= 3
-        "low"
-      elsif imputed_count >= 1
-        "partial"
-      else
-        "full"
-      end
+      factor_count = 6 - imputed_count
+      age_days = market_age_days(market)
+
+      return "low" if factor_count < RiskScoringConfig.medium_confidence_min_factors || age_days < RiskScoringConfig.low_confidence_max_age_days
+      return "high" if factor_count >= RiskScoringConfig.high_confidence_min_factors && age_days >= RiskScoringConfig.high_confidence_min_age_days
+      "medium"
+    end
+
+    def market_age_days(market)
+      return 0 unless market.respond_to?(:created_at) && market.created_at.present?
+      ((Time.current - market.created_at.to_time) / 1.day).round(2)
     end
 
     def persist_risk_score!(market, result)
