@@ -2,7 +2,7 @@
 
 # Orchestrates six-factor risk scoring. Commit 11: composite assembly, override gates, persistence.
 # Returns full result hash and persists to RiskScore.
-class RiskScorer
+module RiskScorer
   class << self
     # @param market [Market] Must respond to resolution_criteria, category, clarifications, end_date, market_embedding
     # @param persist [Boolean] If true (default), save to RiskScore
