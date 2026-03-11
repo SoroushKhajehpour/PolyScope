@@ -57,6 +57,19 @@ class RiskScoringConfig
       config[:known_manipulated_sources].to_a.map(&:to_s)
     end
 
+    # Level mapping: score (0-100) → level. From config level_mapping (e.g. low: [0, 25]).
+    def level_mapping
+      config[:level_mapping] || default_level_mapping
+    end
+
+    def level_for_score(score)
+      s = score.to_i
+      level_mapping.each do |level, range|
+        return level.to_s if range.is_a?(Array) && range.size >= 2 && s >= range[0] && s <= range[1]
+      end
+      "medium"
+    end
+
     def reload!
       @config = nil
       config
@@ -111,6 +124,15 @@ class RiskScoringConfig
         source_floor_score: 50,
         similar_floor_score: 50,
         similar_cosine_threshold: 0.85
+      }
+    end
+
+    def default_level_mapping
+      {
+        low: [0, 25],
+        medium: [26, 50],
+        high: [51, 75],
+        critical: [76, 100]
       }
     end
   end

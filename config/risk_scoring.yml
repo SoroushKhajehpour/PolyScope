@@ -29,6 +29,13 @@ default: &default
   global_floor: 5
   global_ceiling: 95
 
+  # Level mapping: score range → level (configurable)
+  level_mapping:
+    low: [0, 25]
+    medium: [26, 50]
+    high: [51, 75]
+    critical: [76, 100]
+
   # Missing factor: impute at this % of factor max (pessimistic prior)
   impute_pessimistic_pct: 60
 
