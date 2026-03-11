@@ -1,56 +1,78 @@
 # frozen_string_literal: true
+require "ostruct"
 
 class MarketsController < ApplicationController
-  VALID_RISK_LEVELS = %w[low medium high critical].freeze
-
   def index
-    scope = Market.with_volume.includes(:risk_score).order(created_at: :desc)
-    scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] }) if params[:risk].in?(VALID_RISK_LEVELS)
-
-    if params[:q].present?
-      hydrate_from_search(params[:q])
-      scope = scope.search(params[:q])
-    end
-
-    @markets = scope.page(params[:page]).per(36)
-    @pagination = {
-      total_pages: @markets.total_pages,
-      current_page: @markets.current_page,
-      prev_page: @markets.prev_page,
-      next_page: @markets.next_page
-    }
+    # Search-first home page; live results load via /live_search.
   end
 
   def live_search
-    scope = Market.with_volume.includes(:risk_score).order(created_at: :desc)
-    scope = scope.references(:risk_scores).where(risk_scores: { level: params[:risk] }) if params[:risk].in?(VALID_RISK_LEVELS)
-
-    if params[:q].present?
-      hydrate_from_search(params[:q])
-      scope = scope.search(params[:q])
-    end
-
-    @markets = scope.limit(8).to_a
+    query = params[:q].to_s.strip
+    @markets = query.present? ? search_results(query) : []
     render partial: "markets/live_search_results", layout: false
+  rescue Faraday::Error => e
+    Rails.logger.warn("[MarketsController] live_search failed: #{e.message}")
+    @markets = []
+    render partial: "markets/live_search_results", layout: false, status: :ok
+  end
+
+  def show
+    @market = Market.find_or_initialize_by(event_id: params[:event_id].to_s)
+    hydrate_market_attrs(@market)
+    @market.save! if @market.new_record? || @market.changed?
+
+    @risk_score = @market.risk_score
+    if score_fresh?(@market)
+      render :show
+    else
+      RiskScoreCalculationJob.perform_later(@market.id)
+      render :evaluating
+    end
+  rescue Faraday::Error => e
+    Rails.logger.warn("[MarketsController] show hydration failed: #{e.message}")
+    @risk_score = @market.risk_score
+    render :show
   end
 
   private
 
-  # Search returns events => [ { id, title, image, volume, markets => [...] } ]. Persist one Market per event.
-  def hydrate_from_search(query)
+  # Read-only API search for live dropdown. No DB writes.
+  def search_results(query)
     client = PolymarketClient.new
     response = client.search(query)
-
-    response["events"].to_a.each do |event_hash|
+    response["events"].to_a.first(8).map do |event_hash|
       attrs = PolymarketEventMapper.build_event_from_search_event(event_hash)
-      next if attrs[:event_id].blank? || attrs[:event_question].blank?
-      next if attrs[:status] == "closed"
-
-      market = Market.find_or_initialize_by(event_id: attrs[:event_id])
-      market.assign_attributes(attrs)
-      market.save!
+      OpenStruct.new(attrs)
     end
-  rescue Faraday::Error => e
-    Rails.logger.warn("[MarketsController] search hydration failed: #{e.message}, using local results only")
+  end
+
+  # Show flow hydration. Updates attrs from API for the selected event.
+  def hydrate_market_attrs(market)
+    event_id = market.event_id.to_s
+    return if event_id.blank?
+
+    client = PolymarketClient.new
+    response = client.search(event_id)
+    event = response["events"].to_a.find { |e| e["id"].to_s == event_id }
+    if event.blank?
+      event = response["events"].to_a.first
+      event = nil unless event && event["id"].to_s == event_id
+    end
+    return if event.blank?
+
+    attrs = PolymarketEventMapper.build_event_from_search_event(event)
+    return if attrs.blank?
+
+    market.assign_attributes(attrs)
+  end
+
+  def score_fresh?(market)
+    score = market.risk_score
+    return false unless score&.computed_at.present?
+    return false unless score.computed_at > 4.hours.ago
+    return false if market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
+    return false if market.end_date.present? && market.end_date <= 24.hours.from_now
+
+    true
   end
 end

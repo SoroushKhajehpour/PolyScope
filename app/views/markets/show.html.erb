@@ -1,0 +1,6 @@
+<div class="mx-auto max-w-5xl px-4 py-8">
+  <%= turbo_stream_from "market_#{@market.id}_score" %>
+  <div id="risk_score_result">
+    <%= render partial: "markets/risk_score_result", locals: { market: @market, risk_score: @risk_score } %>
+  </div>
+</div>

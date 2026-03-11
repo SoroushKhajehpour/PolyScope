@@ -1,0 +1,28 @@
+<div class="mx-auto flex min-h-[calc(100vh-12rem)] max-w-5xl items-center justify-center px-4">
+  <%= turbo_stream_from "market_#{@market.id}_score" %>
+  <section id="risk_score_result" class="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111827]/80 px-8 py-10 text-center shadow-2xl shadow-black/60">
+    <div class="mx-auto mb-6 h-16 w-16 rounded-full border-4 border-[#334155] border-t-[#3b82f6] animate-spin"></div>
+    <h1 class="mb-4 text-2xl font-semibold text-[#e5e7eb]">Evaluating Risk</h1>
+    <div class="relative mx-auto h-7 w-full max-w-sm overflow-hidden">
+      <p class="loading-step absolute inset-0 text-[#94a3b8]">Fetching market data...</p>
+      <p class="loading-step absolute inset-0 text-[#94a3b8]" style="animation-delay: 1.5s;">Running ambiguity analysis...</p>
+      <p class="loading-step absolute inset-0 text-[#94a3b8]" style="animation-delay: 3s;">Scoring resolution risk...</p>
+      <p class="loading-step absolute inset-0 text-[#94a3b8]" style="animation-delay: 4.5s;">Finalizing report...</p>
+    </div>
+  </section>
+</div>
+
+<style>
+  @keyframes stepFade {
+    0% { opacity: 0; transform: translateY(8px); }
+    8% { opacity: 1; transform: translateY(0); }
+    22% { opacity: 1; transform: translateY(0); }
+    30% { opacity: 0; transform: translateY(-8px); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+
+  .loading-step {
+    opacity: 0;
+    animation: stepFade 6s infinite;
+  }
+</style>

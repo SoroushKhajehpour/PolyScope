@@ -11,12 +11,14 @@ Rails.application.routes.draw do
 
 
   root "markets#index"
-  get "live_search" => "markets#live_search", as: :live_search
+
+  resources :markets, only: [:show], param: :event_id do
+    collection do
+      get :live_search
+    end
+  end
 
   require "sidekiq/web"
-
-  Rails.application.routes.draw do
-    mount Sidekiq::Web => "/sidekiq"
-  end
+  mount Sidekiq::Web => "/sidekiq"
 
 end

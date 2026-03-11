@@ -17,7 +17,8 @@ else
   "—"
 end %>
 
-<a href="#"
+<% detail_href = market.respond_to?(:event_id) && market.event_id.present? ? market_path(market.event_id) : "#" %>
+<a href="<%= detail_href %>"
    class="flex items-center gap-3 border-b border-white/5 px-4 py-3 text-left transition-colors duration-150 last:border-b-0 hover:bg-white/5"
    role="option">
   <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#1f2937]">

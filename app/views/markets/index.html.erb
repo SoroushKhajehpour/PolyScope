@@ -77,7 +77,7 @@
         openPanel();
         requestNonce += 1;
         var nonce = requestNonce;
-        var url = "/live_search?q=" + encodeURIComponent(q);
+        var url = "<%= live_search_markets_path %>?q=" + encodeURIComponent(q);
         frame.src = url;
 
         setTimeout(function() {

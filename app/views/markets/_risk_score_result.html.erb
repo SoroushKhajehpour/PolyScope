@@ -1,0 +1,22 @@
+<div class="rounded-2xl border border-white/10 bg-[#111827]/80 p-6 shadow-2xl shadow-black/50">
+  <div class="mb-4">
+    <p class="text-xs uppercase tracking-wider text-[#94a3b8]"><%= market.category.presence || "Uncategorized" %></p>
+    <h1 class="mt-1 text-xl font-semibold leading-snug text-[#e5e7eb]"><%= market.event_question.presence || "Market" %></h1>
+  </div>
+
+  <% if risk_score.present? %>
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
+        Risk Level: <%= risk_score.level.to_s.capitalize %>
+      </span>
+      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
+        Score: <%= risk_score.score %>
+      </span>
+      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
+        Confidence: <%= risk_score.confidence_tier.to_s.upcase.presence || "N/A" %>
+      </span>
+    </div>
+  <% else %>
+    <p class="text-sm text-[#94a3b8]">Risk score is not available yet.</p>
+  <% end %>
+</div>
