@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_06_100007) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_11_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -78,9 +78,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_06_100007) do
     t.index ["market_id"], name: "index_market_description_snapshots_on_market_id"
   end
 
-# Could not dump table "market_embeddings" because of following StandardError
-#   Unknown type 'vector(3072)' for column 'embedding_vector'
-
 
   create_table "markets", force: :cascade do |t|
     t.string "polymarket_id"
@@ -144,7 +141,4 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_06_100007) do
   add_foreign_key "disputes", "markets"
   add_foreign_key "market_description_snapshots", "markets"
   add_foreign_key "market_embeddings", "markets"
-  add_foreign_key "risk_scores", "markets"
-  add_foreign_key "votes", "disputes"
-  add_foreign_key "votes", "wallets"
 end

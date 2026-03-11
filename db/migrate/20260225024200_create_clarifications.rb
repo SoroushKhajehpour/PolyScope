@@ -1,6 +1,6 @@
 class CreateClarifications < ActiveRecord::Migration[8.0]
   def change
-    create_table :clarifications do |t|
+    create_table :clarifications, if_not_exists: true do |t|
       t.references :market, null: false, foreign_key: true
       t.text :previous_text, null: false
       t.text :new_text, null: false

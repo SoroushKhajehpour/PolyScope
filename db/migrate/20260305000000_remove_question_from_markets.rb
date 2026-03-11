@@ -3,6 +3,6 @@
 # One row per event; child market question no longer stored (event_question is the display title).
 class RemoveQuestionFromMarkets < ActiveRecord::Migration[8.0]
   def change
-    remove_column :markets, :question, :string
+    remove_column :markets, :question, :string if column_exists?(:markets, :question)
   end
 end

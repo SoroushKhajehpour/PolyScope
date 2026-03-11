@@ -1,6 +1,6 @@
 class CreateMarkets < ActiveRecord::Migration[8.0]
   def change
-    create_table :markets do |t|
+    create_table :markets, if_not_exists: true do |t|
       t.string :polymarket_id
       t.string :question
       t.text :resolution_criteria

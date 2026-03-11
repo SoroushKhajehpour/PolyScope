@@ -1,6 +1,6 @@
 class CreateDisputes < ActiveRecord::Migration[8.0]
   def change
-    create_table :disputes do |t|
+    create_table :disputes, if_not_exists: true do |t|
       t.references :market, null: false, foreign_key: true
       t.string :question_id, null: false
       t.string :proposed_outcome
@@ -12,6 +12,6 @@ class CreateDisputes < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :disputes, :question_id
+    add_index :disputes, :question_id, if_not_exists: true
   end
 end

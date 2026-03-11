@@ -2,7 +2,7 @@
 
 class CreateMarketDescriptionSnapshots < ActiveRecord::Migration[8.0]
   def change
-    create_table :market_description_snapshots do |t|
+    create_table :market_description_snapshots, if_not_exists: true do |t|
       t.references :market, null: false, foreign_key: true
       t.text :description_text, null: false
       t.string :description_hash, null: false
@@ -13,6 +13,6 @@ class CreateMarketDescriptionSnapshots < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :market_description_snapshots, [:market_id, :snapshot_at]
+    add_index :market_description_snapshots, [:market_id, :snapshot_at], if_not_exists: true
   end
 end

@@ -2,7 +2,7 @@
 
 class CreateLlmScoreCache < ActiveRecord::Migration[8.0]
   def change
-    create_table :llm_score_caches do |t|
+    create_table :llm_score_caches, if_not_exists: true do |t|
       t.string :cache_key, null: false
       t.string :model_id, null: false
       t.string :prompt_version, null: false
@@ -12,7 +12,7 @@ class CreateLlmScoreCache < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :llm_score_caches, :cache_key, unique: true
-    add_index :llm_score_caches, :expires_at
+    add_index :llm_score_caches, :cache_key, unique: true, if_not_exists: true
+    add_index :llm_score_caches, :expires_at, if_not_exists: true
   end
 end

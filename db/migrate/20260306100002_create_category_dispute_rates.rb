@@ -2,7 +2,7 @@
 
 class CreateCategoryDisputeRates < ActiveRecord::Migration[8.0]
   def change
-    create_table :category_dispute_rates do |t|
+    create_table :category_dispute_rates, if_not_exists: true do |t|
       t.string :category_slug, null: false
       t.integer :total_markets, null: false, default: 0
       t.integer :disputed_count, null: false, default: 0
@@ -14,6 +14,6 @@ class CreateCategoryDisputeRates < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :category_dispute_rates, :category_slug, unique: true
+    add_index :category_dispute_rates, :category_slug, unique: true, if_not_exists: true
   end
 end
