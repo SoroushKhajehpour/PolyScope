@@ -20,8 +20,3 @@
       class: UmaDisputeIngestJob
       queue: default
       description: "Ingest UMA dispute data and build category dispute rates"
-    risk_score_calculation:
-      every: "30m"
-      class: RiskScoreCalculationJob
-      queue: default
-      description: "Recalculate risk scores for markets needing scoring"

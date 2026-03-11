@@ -25,7 +25,7 @@ class MarketsController < ApplicationController
     if score_fresh?(@market)
       render :show
     else
-      RiskScoreCalculationJob.perform_later(@market.id)
+      enqueue_supporting_jobs(@market)
       render :evaluating
     end
   rescue Faraday::Error => e
@@ -74,5 +74,10 @@ class MarketsController < ApplicationController
     return false if market.end_date.present? && market.end_date <= 24.hours.from_now
 
     true
+  end
+
+  def enqueue_supporting_jobs(market)
+    MarketEmbeddingJob.perform_later(market.id) if market.market_embedding.blank?
+    RiskScoreCalculationJob.enqueue_unique(market.id)
   end
 end

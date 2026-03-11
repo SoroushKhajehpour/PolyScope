@@ -3,6 +3,39 @@
 require "test_helper"
 
 class RiskScoreCalculationJobTest < ActiveSupport::TestCase
+  test "enqueue_unique enqueues when no duplicate pending" do
+    queue = Object.new
+    queue.define_singleton_method(:any?) { |_blk| false }
+
+    called = []
+    Sidekiq::Queue.stub(:new, queue) do
+      RiskScoreCalculationJob.stub(:perform_later, ->(mid) { called << mid }) do
+        RiskScoreCalculationJob.enqueue_unique(123)
+      end
+    end
+
+    assert_equal [123], called
+  end
+
+  test "enqueue_unique skips duplicate pending job for market" do
+    wrapped_args = {
+      "job_class" => "RiskScoreCalculationJob",
+      "arguments" => [123]
+    }
+    fake_job = Struct.new(:klass, :args).new("ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper", [wrapped_args])
+    queue = Object.new
+    queue.define_singleton_method(:any?) { |&blk| blk.call(fake_job) }
+
+    called = []
+    Sidekiq::Queue.stub(:new, queue) do
+      RiskScoreCalculationJob.stub(:perform_later, ->(mid) { called << mid }) do
+        RiskScoreCalculationJob.enqueue_unique(123)
+      end
+    end
+
+    assert_empty called
+  end
+
   test "perform with market_id creates or updates risk_score" do
     market = Market.create!(
       event_id: "e1",
@@ -46,5 +79,36 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
     )
     ids = RiskScoreCalculationJob.new.send(:markets_needing_scoring).pluck(:id)
     assert_includes ids, market.id
+  end
+
+  test "perform broadcasts turbo stream after scoring" do
+    market = Market.create!(
+      event_id: "e-broadcast",
+      event_question: "Q?",
+      condition_id: "0x99",
+      category: "Politics",
+      status: "active",
+      resolution_criteria: "Resolved by official source."
+    )
+
+    fake_result = { score: 37, level: "medium" }
+    broadcast_calls = []
+
+    fake_call = lambda do |m, persist: true|
+      m.risk_score || m.create_risk_score!(score: 37, level: "medium", factors: {}, computed_at: Time.current)
+      fake_result
+    end
+
+    RiskScorer.stub(:call, fake_call) do
+      Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*args, **kwargs) { broadcast_calls << [args, kwargs] }) do
+        RiskScoreCalculationJob.perform_now(market.id)
+      end
+    end
+
+    assert_equal 1, broadcast_calls.size
+    args, kwargs = broadcast_calls.first
+    assert_equal "market_#{market.id}_score", args.first
+    assert_equal "risk_score_result", kwargs[:target]
+    assert_equal "markets/risk_score_result", kwargs[:partial]
   end
 end
