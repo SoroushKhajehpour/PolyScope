@@ -6,10 +6,14 @@ class UmaClient
   DEFAULT_SUBGRAPH_URL = "https://api.goldsky.com/api/public/project_clus2fndawbcc01w31192938i/subgraphs/polygon-managed-optimistic-oracle-v2/1.0.5/gn"
 
   PAGE_SIZE = 1000
+  TIMEOUT_SECONDS = 8
+  HISTORICAL_TTL = 24.hours
 
   def initialize(subgraph_url: nil)
     @subgraph_url = subgraph_url.presence || ENV.fetch("UMA_SUBGRAPH_URL", DEFAULT_SUBGRAPH_URL)
     @conn = Faraday.new(url: @subgraph_url) do |f|
+      f.options.timeout = TIMEOUT_SECONDS
+      f.options.open_timeout = TIMEOUT_SECONDS
       f.request :json
       f.response :json
       f.adapter Faraday.default_adapter
@@ -19,6 +23,13 @@ class UmaClient
   # Returns array of { condition_id: String, disputed: Boolean } for all price requests (paginated).
   # condition_id is the UMA identifier (hex); join to Market.condition_id.
   def fetch_price_requests
+    cache_key = "uma:price_requests:v1"
+    cached = Rails.cache.read(cache_key)
+    if cached
+      ApiDiagnostics.record_call(service: "uma.price_requests", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      return cached
+    end
+
     out = []
     skip = 0
     loop do
@@ -30,6 +41,7 @@ class UmaClient
 
       skip += PAGE_SIZE
     end
+    Rails.cache.write(cache_key, out, expires_in: HISTORICAL_TTL)
     out
   end
 
@@ -51,7 +63,18 @@ class UmaClient
       }
     GQL
     body = { query: query, variables: { first: first, skip: skip } }
-    res = @conn.post("", body)
+    attempts = 0
+    begin
+      attempts += 1
+      res = @conn.post("", body)
+    rescue Faraday::TimeoutError, Faraday::ConnectionFailed
+      retry if attempts < 2
+      raise
+    end
+    if defined?(ApiDiagnostics)
+      ApiDiagnostics.record_call(service: "uma.price_requests")
+      ApiDiagnostics.record_rate_limit(service: "uma.price_requests", headers: res.headers.to_h)
+    end
     raise "UMA subgraph error: #{res.status}" unless res.success?
 
     data = res.body

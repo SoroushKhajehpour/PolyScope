@@ -9,6 +9,7 @@ module RiskScorer
     ABSENCE_PENALTY_DATE = 2
     ABSENCE_PENALTY_SOURCE = 3
     ABSENCE_PENALTY_THRESHOLD = 2
+    OBJECTIVE_SIGNAL_REDUCTION = 8
 
     # Pattern name => [regex, weight per match]. Subjective gets multiplied by SUBJECTIVE_MULTIPLIER in scoring.
     PATTERNS = {
@@ -24,8 +25,26 @@ module RiskScorer
       epistemic_markers: [/\b(?:perhaps|possibly|probably|presumably|approximately|roughly|unclear|uncertain)\b/i, 1.2]
     }.freeze
 
+    OBJECTIVE_SIGNALS = [
+      /closing price/i,
+      /on-chain/i,
+      /official.*results/i,
+      /verified by/i,
+      /according to.*api/i,
+      /coingecko/i,
+      /coinmarketcap/i,
+      /\$\d+/,
+      /\d+%/,
+      /at or above/i,
+      /at or below/i,
+      /greater than/i,
+      /less than/i,
+      /on or before/i,
+      /resolution source.*official/i
+    ].freeze
+
     # Presence patterns for absence penalty (if none match, add penalty)
-    HAS_DATE = /\d{4}-\d{2}-\d{2}|\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4}\b|\b(?:19|20)\d{2}\b/i
+    HAS_DATE = RiskScorer::DatePatterns::DATE_PATTERN
     # Generic attribution phrases + named sources (agencies, wires, networks) + court/official-result phrases
     HAS_SOURCE = /
       \b(?:according\s+to|as\s+reported\s+by|resolution\s+source|from\s+(?:the\s+)?(?:website|site|url))\b
@@ -40,6 +59,8 @@ module RiskScorer
         return MAX_SCORE if text.blank?
 
         raw = 0.0
+        objective_credits = OBJECTIVE_SIGNALS.sum { |regex| text.scan(regex).size } * OBJECTIVE_SIGNAL_REDUCTION
+
         PATTERNS.each do |name, (regex, weight)|
           count = text.scan(regex).size
           next if count.zero?
@@ -50,6 +71,7 @@ module RiskScorer
         raw += ABSENCE_PENALTY_DATE    unless text.match?(HAS_DATE)
         raw += ABSENCE_PENALTY_SOURCE  unless text.match?(HAS_SOURCE)
         raw += ABSENCE_PENALTY_THRESHOLD unless text.match?(HAS_THRESHOLD)
+        raw -= objective_credits
 
         [[raw.round, MAX_SCORE].min, 0].max
       end

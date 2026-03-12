@@ -4,15 +4,17 @@ require "test_helper"
 
 module RiskScorer
   class SimilarOutcomesScorerTest < ActiveSupport::TestCase
-    test "call returns hash with score and factor_metadata" do
+    test "call returns hash with score, availability, and factor_metadata" do
       market = Market.new
       market.define_singleton_method(:market_embedding) { nil }
       result = SimilarOutcomesScorer.call(market)
       assert result.key?(:score)
+      assert result.key?(:available)
       assert result.key?(:factor_metadata)
       assert result[:score].between?(0, 10)
       assert result[:factor_metadata].key?(:similar_market_ids)
       assert result[:factor_metadata].key?(:similar_scores)
+      assert_equal false, result[:available]
     end
 
     test "call returns 0 when market has no embedding" do

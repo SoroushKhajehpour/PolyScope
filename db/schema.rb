@@ -78,6 +78,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_11_120000) do
     t.index ["market_id"], name: "index_market_description_snapshots_on_market_id"
   end
 
+# Could not dump table "market_embeddings" because of following StandardError
+#   Unknown type 'vector(3072)' for column 'embedding_vector'
+
 
   create_table "markets", force: :cascade do |t|
     t.string "polymarket_id"

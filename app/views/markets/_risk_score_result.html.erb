@@ -1,13 +1,45 @@
 <div class="rounded-2xl border border-white/10 bg-[#111827]/80 p-6 shadow-2xl shadow-black/50">
-  <div class="mb-4">
-    <p class="text-xs uppercase tracking-wider text-[#94a3b8]"><%= market.category.presence || "Uncategorized" %></p>
-    <h1 class="mt-1 text-xl font-semibold leading-snug text-[#e5e7eb]"><%= market.event_question.presence || "Market" %></h1>
+  <div class="mb-5 flex items-start gap-4">
+    <div class="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#1f2937]">
+      <% if market.event_image.present? %>
+        <%= image_tag market.event_image, alt: "Market image", class: "h-full w-full object-cover", loading: "lazy" %>
+      <% else %>
+        <div class="flex h-full w-full items-center justify-center text-xs text-[#94a3b8]">No image</div>
+      <% end %>
+    </div>
+    <div class="min-w-0 flex-1">
+      <p class="text-xs uppercase tracking-wider text-[#94a3b8]"><%= market.category.presence || "Uncategorized" %></p>
+      <h1 class="mt-1 text-xl font-semibold leading-snug text-[#e5e7eb]"><%= market.event_question.presence || "Market ##{market.event_id}" %></h1>
+      <div class="mt-2 flex flex-wrap gap-2 text-xs text-[#94a3b8]">
+        <span class="rounded-full border border-white/10 px-2 py-1">Event ID: <%= market.event_id.presence || "N/A" %></span>
+        <% if market.end_date.present? %>
+          <span class="rounded-full border border-white/10 px-2 py-1">Ends: <%= market.end_date.strftime("%b %d, %Y %H:%M %Z") %></span>
+        <% end %>
+        <% if market.volume.present? %>
+          <span class="rounded-full border border-white/10 px-2 py-1">Volume: <%= number_to_currency(market.volume.to_f, precision: 0) %></span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-4 rounded-lg border border-white/10 bg-[#0b1220]/80 p-4">
+    <p class="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]">Resolution Criteria</p>
+    <p class="mt-2 whitespace-pre-wrap text-sm text-[#cbd5e1]"><%= market.resolution_criteria.presence || "No resolution criteria provided." %></p>
   </div>
 
   <% if risk_score.present? %>
+    <% metadata = risk_score.factor_metadata.is_a?(Hash) ? risk_score.factor_metadata : {} %>
+    <% explanation = metadata["explanation"].is_a?(Hash) ? metadata["explanation"] : {} %>
+    <% factors = explanation["factors"].is_a?(Array) ? explanation["factors"] : [] %>
+    <% top_risk_drivers = explanation["topRiskDrivers"].is_a?(Array) ? explanation["topRiskDrivers"] : [] %>
+    <% why_not_higher = explanation["whyNotHigherRisk"].is_a?(Array) ? explanation["whyNotHigherRisk"] : [] %>
+    <% unavailable = metadata["data_sources_unavailable"].is_a?(Array) ? metadata["data_sources_unavailable"] : [] %>
+    <% liquidity_note = explanation["liquidityNote"].is_a?(Hash) ? explanation["liquidityNote"] : {} %>
+    <% resolution_card = explanation["resolutionCriteria"].is_a?(Hash) ? explanation["resolutionCriteria"] : {} %>
+
     <div class="flex flex-wrap items-center gap-3">
       <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
-        Risk Level: <%= risk_score.level.to_s.capitalize %>
+        Risk Level: <%= risk_score.level.to_s.tr("_", " ").capitalize %>
       </span>
       <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
         Score: <%= risk_score.score %>
@@ -15,8 +47,141 @@
       <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-[#cbd5e1]">
         Confidence: <%= risk_score.confidence_tier.to_s.upcase.presence || "N/A" %>
       </span>
+      <% if liquidity_note["label"].present? %>
+        <span class="rounded-full border border-sky-300/30 bg-sky-500/10 px-3 py-1 text-sm text-sky-100">
+          Liquidity: <%= liquidity_note["label"].to_s.humanize %>
+        </span>
+      <% end %>
     </div>
+    <p class="mt-3 text-xs text-[#94a3b8]">
+      Data refreshed <%= time_ago_in_words(risk_score.computed_at || Time.current) %> ago
+    </p>
+
+    <% if unavailable.any? %>
+      <div class="mt-3 rounded-lg border border-amber-300/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        Some data sources were unavailable and the score was computed with partial data:
+        <%= unavailable.join(", ") %>.
+      </div>
+    <% end %>
+
+    <% if explanation["summary"].present? %>
+      <div class="mt-4 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-[#cbd5e1]">
+        <strong>Why this score?</strong> <%= explanation["summary"] %>
+      </div>
+    <% end %>
+    <% if explanation["confidenceNote"].present? %>
+      <p class="mt-2 text-xs text-amber-200"><%= explanation["confidenceNote"] %></p>
+    <% end %>
+    <% if liquidity_note["explanation"].present? %>
+      <p class="mt-2 text-xs text-sky-100"><%= liquidity_note["explanation"] %></p>
+    <% end %>
+
+    <% if resolution_card.present? %>
+      <% criteria_text = resolution_card["criteriaText"].to_s %>
+      <% short_criteria = criteria_text.length > 300 ? "#{criteria_text[0...300]}..." : criteria_text %>
+      <% ambiguity_level = resolution_card["ambiguityLevel"].to_s.upcase %>
+      <% badge_style = case ambiguity_level
+      when "NONE" then "bg-emerald-500/15 border-emerald-300/30 text-emerald-100"
+      when "LOW" then "bg-sky-500/15 border-sky-300/30 text-sky-100"
+      when "MODERATE" then "bg-amber-500/15 border-amber-300/30 text-amber-100"
+      else "bg-rose-500/15 border-rose-300/30 text-rose-100"
+      end %>
+      <% badge_label = case ambiguity_level
+      when "NONE" then "Clear & Objective"
+      when "LOW" then "Mostly Clear"
+      when "MODERATE" then "Some Ambiguity"
+      else "Significant Ambiguity"
+      end %>
+      <div class="mt-4 rounded-lg border border-white/10 bg-[#0b1220]/80 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]">Resolution Criteria</p>
+        <blockquote class="mt-2 rounded border border-white/10 bg-white/5 p-3 text-sm text-[#cbd5e1]">
+          <span id="criteria_short"><%= short_criteria.presence || "No resolution criteria provided." %></span>
+          <% if criteria_text.length > 300 %>
+            <span id="criteria_full" class="hidden"><%= criteria_text %></span>
+            <button type="button" class="ml-2 text-xs text-sky-200 underline" data-toggle-criteria>show more</button>
+          <% end %>
+        </blockquote>
+
+        <span class="mt-3 inline-flex rounded-full border px-3 py-1 text-xs <%= badge_style %>"><%= badge_label %></span>
+
+        <% if Array(resolution_card["misinterpretations"]).any? %>
+          <div class="mt-3 space-y-3">
+            <% Array(resolution_card["misinterpretations"]).each do |item| %>
+              <div class="rounded border border-white/10 bg-white/5 p-3">
+                <p class="text-sm text-amber-100">⚠ <%= item["issue"] %></p>
+                <p class="mt-1 text-xs text-[#cbd5e1]"><%= item["description"] %></p>
+                <% if item["affectedPhrase"].present? %>
+                  <p class="mt-1 text-xs italic text-[#94a3b8]">Affected phrase: "<%= item["affectedPhrase"] %>"</p>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if resolution_card["overallNote"].present? %>
+          <p class="mt-3 text-sm text-[#cbd5e1]"><%= resolution_card["overallNote"] %></p>
+        <% end %>
+        <% if resolution_card["sourceLabel"].present? %>
+          <p class="mt-2 text-xs text-[#94a3b8]"><%= resolution_card["sourceLabel"] %></p>
+        <% end %>
+      </div>
+      <script>
+        (function() {
+          var btn = document.querySelector("[data-toggle-criteria]");
+          if (!btn || btn.dataset.bound === "true") return;
+          btn.dataset.bound = "true";
+          btn.addEventListener("click", function() {
+            var shortEl = document.getElementById("criteria_short");
+            var fullEl = document.getElementById("criteria_full");
+            if (!shortEl || !fullEl) return;
+            var showingFull = !fullEl.classList.contains("hidden");
+            if (showingFull) {
+              fullEl.classList.add("hidden");
+              shortEl.classList.remove("hidden");
+              btn.textContent = "show more";
+            } else {
+              fullEl.classList.remove("hidden");
+              shortEl.classList.add("hidden");
+              btn.textContent = "show less";
+            }
+          });
+        })();
+      </script>
+    <% end %>
+
+    <details class="mt-4 rounded-lg border border-white/10 bg-[#0b1220]/80 p-4">
+      <summary class="cursor-pointer text-sm font-medium text-[#e5e7eb]">Factor breakdown</summary>
+      <div class="mt-3 space-y-3">
+        <% factors.each do |factor| %>
+          <div class="rounded-md border border-white/10 bg-white/5 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-[#e5e7eb]">
+              <span><%= factor["label"] %></span>
+              <span><%= factor["score"] %>/100 (<%= factor["weight"] %>)</span>
+            </div>
+            <p class="mt-1 text-xs text-[#94a3b8]"><%= factor["explanation"] %></p>
+          </div>
+        <% end %>
+      </div>
+
+      <% if top_risk_drivers.any? %>
+        <div class="mt-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-amber-300">Top risk drivers</p>
+          <% top_risk_drivers.each do |driver| %>
+            <p class="mt-1 text-sm text-amber-100">⚠ <%= driver %></p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% if why_not_higher.any? %>
+        <div class="mt-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-emerald-300">Why not higher risk</p>
+          <% why_not_higher.each do |reason| %>
+            <p class="mt-1 text-sm text-emerald-100">✓ <%= reason %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </details>
   <% else %>
-    <p class="text-sm text-[#94a3b8]">Risk score is not available yet.</p>
+    <p class="text-sm text-[#94a3b8]">Risk score is not available for this market yet.</p>
   <% end %>
 </div>

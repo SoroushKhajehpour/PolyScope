@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require "ostruct"
+require "digest"
 
 class MarketsController < ApplicationController
   def index
@@ -8,7 +9,21 @@ class MarketsController < ApplicationController
 
   def live_search
     query = params[:q].to_s.strip
-    @markets = query.present? ? search_results(query) : []
+    @markets = if query.present?
+      cache_key = "live_search:#{Digest::SHA256.hexdigest(query.downcase)}"
+      cached = Rails.cache.read(cache_key)
+      if cached
+        ApiDiagnostics.record_call(service: "markets.live_search", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+        cached
+      else
+        results = search_results(query)
+        Rails.cache.write(cache_key, results, expires_in: 60.seconds)
+        ApiDiagnostics.record_call(service: "markets.live_search") if defined?(ApiDiagnostics)
+        results
+      end
+    else
+      []
+    end
     render partial: "markets/live_search_results", layout: false
   rescue Faraday::Error => e
     Rails.logger.warn("[MarketsController] live_search failed: #{e.message}")
@@ -22,6 +37,12 @@ class MarketsController < ApplicationController
     @market.save! if @market.new_record? || @market.changed?
 
     @risk_score = @market.risk_score
+    if insufficient_market_data?(@market)
+      @risk_score = nil
+      render :show
+      return
+    end
+
     if score_fresh?(@market)
       render :show
     else
@@ -32,6 +53,15 @@ class MarketsController < ApplicationController
     Rails.logger.warn("[MarketsController] show hydration failed: #{e.message}")
     @risk_score = @market.risk_score
     render :show
+  end
+
+  def score_result
+    market = Market.find_by(event_id: params[:event_id].to_s)
+    risk_score = market&.risk_score
+    return head :no_content unless market && risk_score
+
+    ApiDiagnostics.record_call(service: "markets.score_result") if defined?(ApiDiagnostics)
+    render partial: "markets/risk_score_result", locals: { market: market, risk_score: risk_score }, layout: false
   end
 
   private
@@ -51,18 +81,30 @@ class MarketsController < ApplicationController
     event_id = market.event_id.to_s
     return if event_id.blank?
 
+    cache_key = "market_hydration:event:#{event_id}"
+    event = Rails.cache.read(cache_key)
+    if event.present?
+      ApiDiagnostics.record_call(service: "markets.hydration", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      attrs = PolymarketEventMapper.build_event_from_search_event(event)
+      market.assign_attributes(attrs) if attrs.present?
+      return
+    end
+
     client = PolymarketClient.new
-    response = client.search(event_id)
-    event = response["events"].to_a.find { |e| e["id"].to_s == event_id }
-    if event.blank?
-      event = response["events"].to_a.first
-      event = nil unless event && event["id"].to_s == event_id
+    event = nil
+    begin
+      event = client.event(event_id)
+    rescue Faraday::Error
+      response = client.search(event_id)
+      event = response["events"].to_a.find { |e| e["id"].to_s == event_id }
     end
     return if event.blank?
 
     attrs = PolymarketEventMapper.build_event_from_search_event(event)
     return if attrs.blank?
 
+    Rails.cache.write(cache_key, event, expires_in: 60.seconds)
+    ApiDiagnostics.record_call(service: "markets.hydration") if defined?(ApiDiagnostics)
     market.assign_attributes(attrs)
   end
 
@@ -77,7 +119,18 @@ class MarketsController < ApplicationController
   end
 
   def enqueue_supporting_jobs(market)
-    MarketEmbeddingJob.perform_later(market.id) if market.market_embedding.blank?
-    RiskScoreCalculationJob.enqueue_unique(market.id)
+    session_key = ai_session_key
+    # ✅ LLM/EMBEDDINGS CALL TRIGGER — only reachable from explicit user market selection
+    # Do not move or duplicate this call elsewhere.
+    MarketEmbeddingJob.perform_later(market.id, session_key: session_key) if market.market_embedding.blank?
+    RiskScoreCalculationJob.enqueue_unique(market.id, session_key: session_key)
+  end
+
+  def insufficient_market_data?(market)
+    market.event_question.to_s.strip.empty? || market.resolution_criteria.to_s.strip.empty?
+  end
+
+  def ai_session_key
+    (session.respond_to?(:id) ? session.id : nil).to_s.presence || request.remote_ip.to_s
   end
 end

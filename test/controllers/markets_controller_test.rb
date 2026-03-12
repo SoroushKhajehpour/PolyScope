@@ -12,6 +12,9 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
 
   test "live_search is read-only and returns mapped results" do
     fake_client = Object.new
+    fake_client.define_singleton_method(:event) do |_event_id|
+      raise Faraday::Error, "not found"
+    end
     fake_client.define_singleton_method(:search) do |_query|
       {
         "events" => [
@@ -48,6 +51,17 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     )
 
     fake_client = Object.new
+    fake_client.define_singleton_method(:event) do |event_id|
+      {
+        "id" => event_id,
+        "title" => "Q?",
+        "description" => "Resolved by official source.",
+        "endDate" => 10.days.from_now.iso8601,
+        "liquidity" => "1000",
+        "volume" => "1000",
+        "active" => true
+      }
+    end
     fake_client.define_singleton_method(:search) { |_query| { "events" => [] } }
 
     assert_enqueued_with(job: RiskScoreCalculationJob) do
@@ -78,6 +92,17 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     )
 
     fake_client = Object.new
+    fake_client.define_singleton_method(:event) do |event_id|
+      {
+        "id" => event_id,
+        "title" => "Fresh market?",
+        "description" => "Resolved by official source.",
+        "endDate" => 10.days.from_now.iso8601,
+        "liquidity" => "1000",
+        "volume" => "1000",
+        "active" => true
+      }
+    end
     fake_client.define_singleton_method(:search) { |_query| { "events" => [] } }
 
     PolymarketClient.stub(:new, fake_client) do
@@ -113,6 +138,17 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     )
 
     fake_client = Object.new
+    fake_client.define_singleton_method(:event) do |event_id|
+      {
+        "id" => event_id,
+        "title" => "Stale market?",
+        "description" => "Resolved by official source.",
+        "endDate" => 10.days.from_now.iso8601,
+        "liquidity" => "1000",
+        "volume" => "1000",
+        "active" => true
+      }
+    end
     fake_client.define_singleton_method(:search) { |_query| { "events" => [] } }
 
     assert_enqueued_with(job: RiskScoreCalculationJob) do

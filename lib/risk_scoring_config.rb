@@ -32,25 +32,16 @@ class RiskScoringConfig
       ENV["RISK_SCORING_PROMPT_VERSION"].presence || config[:prompt_version] || "1.0"
     end
 
-    # Convenience: single gate value
-    def ambiguity_floor_threshold
-      override_gates[:ambiguity_floor_threshold] || 22
+    def manipulation_floor_threshold
+      (override_gates[:manipulation_floor_threshold] || 70).to_i
     end
 
-    def ambiguity_floor_score
-      override_gates[:ambiguity_floor_score] || 60
+    def manipulation_floor
+      (override_gates[:manipulation_floor] || 65).to_i
     end
 
-    def source_floor_score
-      override_gates[:source_floor_score] || 50
-    end
-
-    def similar_floor_score
-      override_gates[:similar_floor_score] || 50
-    end
-
-    def similar_cosine_threshold
-      (override_gates[:similar_cosine_threshold] || 0.85).to_f
+    def missing_criteria_floor
+      (override_gates[:missing_criteria_floor] || 55).to_i
     end
 
     def known_manipulated_sources
@@ -90,6 +81,36 @@ class RiskScoringConfig
       "medium"
     end
 
+    # Look up risk-scoring market type from Polymarket category (slug).
+    # Uses fallback mapping only when LLM market type inference is unavailable.
+    def market_type_for_category_slug(slug)
+      mapping = fallback_market_type_mapping
+      default = (mapping[:default] || "SUBJECTIVE_QUALITATIVE").to_s
+      return default if slug.blank?
+      key = slug.to_s.strip.downcase.parameterize.presence
+      return default if key.blank?
+      normalized = normalized_market_type_map(mapping)
+      (normalized[key] || default).to_s
+    end
+
+    def market_type_default
+      mapping = fallback_market_type_mapping
+      (mapping[:default] || mapping["default"] || "SUBJECTIVE_QUALITATIVE").to_s
+    end
+
+    # @return [Hash] { market_type: String, used_default: Boolean, normalized_key: String, mapping_found: Boolean }
+    def market_type_lookup(category)
+      mapping = fallback_market_type_mapping
+      default = market_type_default
+      key = category.to_s.strip.downcase.parameterize.presence
+      return { market_type: default, used_default: true, normalized_key: "", mapping_found: false } if key.blank?
+
+      normalized = normalized_market_type_map(mapping)
+      found = normalized.key?(key)
+      type = found ? normalized[key].to_s : default
+      { market_type: type, used_default: !found, normalized_key: key, mapping_found: found }
+    end
+
     def reload!
       @config = nil
       config
@@ -101,11 +122,25 @@ class RiskScoringConfig
       path = Rails.root.join("config", "risk_scoring.yml")
       return {} unless path.exist?
 
-      yaml = YAML.load_file(path)
+      yaml = YAML.load_file(path, aliases: true)
       env_key = Rails.env.to_s
       base = (yaml["default"] || {}).deep_symbolize_keys
       env = (yaml[env_key] || {}).deep_symbolize_keys
       deep_merge(base, env).deep_symbolize_keys
+    end
+
+    def normalized_market_type_map(mapping)
+      mapping.each_with_object({}) do |(raw_key, raw_value), out|
+        key = raw_key.to_s
+        next if key == "default"
+        normalized_key = key.strip.downcase.parameterize.presence
+        next if normalized_key.blank?
+        out[normalized_key] = raw_value.to_s
+      end
+    end
+
+    def fallback_market_type_mapping
+      (config[:market_type_fallback_by_category] || config[:market_type_from_category] || {}).to_h
     end
 
     def deep_merge(base, overrides)
@@ -139,11 +174,9 @@ class RiskScoringConfig
 
     def default_override_gates
       {
-        ambiguity_floor_threshold: 22,
-        ambiguity_floor_score: 60,
-        source_floor_score: 50,
-        similar_floor_score: 50,
-        similar_cosine_threshold: 0.85
+        manipulation_floor_threshold: 70,
+        manipulation_floor: 65,
+        missing_criteria_floor: 55
       }
     end
 

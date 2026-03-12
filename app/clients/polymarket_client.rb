@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "digest"
 
 # =============================================================================
 # Gamma API structure & title bug (Phase 1.1 — from tmp/gamma_markets_raw.json,
@@ -42,9 +43,14 @@
 
 class PolymarketClient
   BASE_URL = "https://gamma-api.polymarket.com"
+  TIMEOUT_SECONDS = 8
+  METADATA_TTL = 30.minutes
+  PRICE_TTL = 5.minutes
 
   def initialize
     @conn = Faraday.new(url: BASE_URL) do |f|
+      f.options.timeout = TIMEOUT_SECONDS
+      f.options.open_timeout = TIMEOUT_SECONDS
       f.adapter Faraday.default_adapter
     end
   end
@@ -53,22 +59,51 @@ class PolymarketClient
     params = { limit: limit, offset: offset, closed: closed, include_tag: include_tag }
     params[:order] = order if order.present?
     params[:ascending] = ascending unless ascending.nil?
-    response = @conn.get("/markets", params)
-    raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
+    cache_key = "polymarket:markets:#{Digest::SHA256.hexdigest(params.sort_by { |k, _v| k.to_s }.to_h.to_json)}"
+    cached = Rails.cache.read(cache_key)
+    if cached
+      ApiDiagnostics.record_call(service: "polymarket.markets", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      return cached
+    end
 
-    JSON.parse(response.body)
+    data = request_json_with_retry(path: "/markets", params: params, service_name: "polymarket.markets")
+    Rails.cache.write(cache_key, data, expires_in: METADATA_TTL)
+    data
   rescue Faraday::Error => e
     Rails.logger.error("[PolymarketClient] markets failed: #{e.message}")
     raise
   end
 
   def market(id)
-    response = @conn.get("/markets/#{id}")
-    raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
+    cache_key = "polymarket:market:#{id}"
+    cached = Rails.cache.read(cache_key)
+    if cached
+      ApiDiagnostics.record_call(service: "polymarket.market", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      return cached
+    end
 
-    JSON.parse(response.body)
+    data = request_json_with_retry(path: "/markets/#{id}", service_name: "polymarket.market")
+    Rails.cache.write(cache_key, data, expires_in: PRICE_TTL)
+    data
   rescue Faraday::Error => e
     Rails.logger.error("[PolymarketClient] market(#{id}) failed: #{e.message}")
+    raise
+  end
+
+  # Fetch one event by id.
+  def event(id)
+    cache_key = "polymarket:event:#{id}"
+    cached = Rails.cache.read(cache_key)
+    if cached
+      ApiDiagnostics.record_call(service: "polymarket.event", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      return cached
+    end
+
+    data = request_json_with_retry(path: "/events/#{id}", service_name: "polymarket.event")
+    Rails.cache.write(cache_key, data, expires_in: METADATA_TTL)
+    data
+  rescue Faraday::Error => e
+    Rails.logger.error("[PolymarketClient] event(#{id}) failed: #{e.message}")
     raise
   end
 
@@ -81,12 +116,44 @@ class PolymarketClient
       search_tags: true,
       search_profiles: false
     }
-    response = @conn.get("/public-search", params)
-    raise Faraday::Error, "Gamma API returned #{response.status}" unless response.success?
+    cache_key = "polymarket:search:#{Digest::SHA256.hexdigest(params.to_json)}"
+    cached = Rails.cache.read(cache_key)
+    if cached
+      ApiDiagnostics.record_call(service: "polymarket.search", cache_hit: true, deduped: true) if defined?(ApiDiagnostics)
+      return cached
+    end
 
-    JSON.parse(response.body)
+    data = request_json_with_retry(path: "/public-search", params: params, service_name: "polymarket.search")
+    Rails.cache.write(cache_key, data, expires_in: 60.seconds)
+    data
   rescue Faraday::Error => e
     Rails.logger.error("[PolymarketClient] search failed: #{e.message}")
     raise
+  end
+
+  private
+
+  def request_json_with_retry(path:, service_name:, params: nil)
+    attempts = 0
+    begin
+      attempts += 1
+      response = @conn.get(path, params)
+      if defined?(ApiDiagnostics)
+        ApiDiagnostics.record_call(service: service_name, cache_hit: false)
+        ApiDiagnostics.record_rate_limit(service: service_name, headers: response.headers.to_h)
+      end
+
+      if response.status >= 400 && response.status < 500
+        raise Faraday::ClientError.new("Gamma API returned #{response.status}", response: response)
+      end
+      if response.status >= 500
+        raise Faraday::ServerError.new("Gamma API returned #{response.status}", response: response)
+      end
+
+      JSON.parse(response.body)
+    rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::ServerError => e
+      retry if attempts < 2
+      raise e
+    end
   end
 end

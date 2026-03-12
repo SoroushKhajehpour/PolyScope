@@ -6,21 +6,19 @@
 class MarketEmbeddingJob < ApplicationJob
   queue_as :default
 
-  # @param market_id [Integer, nil] Specific market, or nil to process all
+  # @param market_id [Integer, nil] Specific market only (explicit user selection trigger)
   # @param embedding_client [Object, nil] Optional client responding to #embed(text). Defaults to EmbeddingClient.new (for tests, pass a stub).
-  def perform(market_id = nil, embedding_client: nil)
+  def perform(market_id = nil, embedding_client: nil, session_key: nil)
     client = embedding_client || EmbeddingClient.new
-    if market_id
-      market = Market.find_by(id: market_id)
-      embed_market(market, client) if market
-    else
-      Market.find_each { |m| embed_market(m, client) }
-    end
+    return if market_id.blank?
+
+    market = Market.find_by(id: market_id)
+    embed_market(market, client, session_key: session_key) if market
   end
 
   private
 
-  def embed_market(market, client)
+  def embed_market(market, client, session_key: nil)
     text = market.resolution_criteria.to_s
     return if text.strip.empty?
 
@@ -31,7 +29,7 @@ class MarketEmbeddingJob < ApplicationJob
       return
     end
 
-    vector = client.embed(text)
+    vector = client.embed(text, session_key: session_key)
     return unless vector.is_a?(Array) && vector.any?
 
     embedding_vector = Pgvector::Vector.new(vector)

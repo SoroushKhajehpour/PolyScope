@@ -24,11 +24,11 @@ module RiskScorer
 
     class << self
       # @param market [Market]
-      # @return [Hash] { score: Integer 0–10, factor_metadata: { similar_market_ids: [], similar_scores: {} } }
+      # @return [Hash] { score: Integer 0–10, available: Boolean, factor_metadata: { similar_market_ids: [], similar_scores: {} } }
       def call(market)
         me = market.respond_to?(:market_embedding) ? market.market_embedding : nil
         if me.blank? || me.embedding_vector.blank?
-          return { score: 0, factor_metadata: { similar_market_ids: [], similar_scores: {} } }
+          return { score: 0, available: false, factor_metadata: { similar_market_ids: [], similar_scores: {} } }
         end
 
         vec = me.embedding_vector
@@ -57,6 +57,7 @@ module RiskScorer
 
         {
           score: score,
+          available: true,
           factor_metadata: {
             similar_market_ids: similar_market_ids,
             similar_scores: similar_scores

@@ -13,9 +13,17 @@ Rails.application.routes.draw do
   root "markets#index"
 
   resources :markets, only: [:show], param: :event_id do
+    member do
+      get :score_result
+    end
+
     collection do
       get :live_search
     end
+  end
+
+  if Rails.env.development?
+    get "dev/api_diagnostics", to: "dev_diagnostics#api"
   end
 
   require "sidekiq/web"

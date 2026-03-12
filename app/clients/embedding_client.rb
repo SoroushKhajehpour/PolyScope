@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "digest"
 
 # Wrapper for OpenAI embeddings API. API key from ENV only (never hardcoded).
 # Set OPENAI_API_KEY in .env (or production env). Used only server-side; never sent to frontend.
@@ -7,6 +8,8 @@ class EmbeddingClient
   DEFAULT_BASE_URL = "https://api.openai.com"
   DEFAULT_MODEL = "text-embedding-3-large"
   DEFAULT_DIMENSIONS = 3072
+  TIMEOUT_SECONDS = 8
+  EMBEDDINGS_CACHE_TTL = 24.hours
 
   def initialize(api_key: nil, base_url: nil, model: nil)
     @api_key = api_key.presence || ENV["OPENAI_API_KEY"]
@@ -20,21 +23,54 @@ class EmbeddingClient
 
   # @param text [String] Text to embed
   # @return [Array<Float>, nil] Embedding vector (e.g. 3072 dims), or nil if not configured or error
-  def embed(text)
+  def embed(text, session_key: nil)
     return nil unless configured?
     return nil if text.to_s.strip.empty?
 
-    body = { model: @model, input: text.to_s.strip }
-    res = conn.post("/v1/embeddings", body)
-    raise "Embedding API error: #{res.status}" unless res.success?
+    normalized = text.to_s.strip
+    cache_key = "openai:embeddings:v1:#{Digest::SHA256.hexdigest([@model, normalized].join("\n"))}"
+    cached = Rails.cache.read(cache_key)
+    return cached if cached.is_a?(Array) && cached.any?
+    return nil if cached == "fallback_unavailable"
 
-    data = res.body
-    arr = data.dig("data", 0, "embedding")
-    return nil unless arr.is_a?(Array)
+    dedupe_key = "openai:embeddings:dedupe:#{cache_key}"
+    RiskScorer::AiCallGovernor.with_dedup_lock(dedupe_key) do
+      cached_again = Rails.cache.read(cache_key)
+      return cached_again if cached_again.is_a?(Array) && cached_again.any?
+      return nil if cached_again == "fallback_unavailable"
 
-    arr.map { |x| x.to_f }
+      budget = RiskScorer::AiCallGovernor.acquire_budget(provider: "openai", session_key: session_key)
+      unless budget[:allowed]
+        Rails.cache.write(cache_key, "fallback_unavailable", expires_in: EMBEDDINGS_CACHE_TTL)
+        return nil
+      end
+
+      body = { model: @model, input: normalized }
+      attempts = 0
+      begin
+        attempts += 1
+        res = conn.post("/v1/embeddings", body)
+      rescue Faraday::TimeoutError, Faraday::ConnectionFailed
+        retry if attempts < 2
+        raise
+      end
+      if defined?(ApiDiagnostics)
+        ApiDiagnostics.record_call(service: "openai.embeddings")
+        ApiDiagnostics.record_rate_limit(service: "openai.embeddings", headers: res.headers.to_h)
+      end
+      raise "Embedding API error: #{res.status}" unless res.success?
+
+      data = res.body
+      arr = data.dig("data", 0, "embedding")
+      return nil unless arr.is_a?(Array)
+
+      vector = arr.map { |x| x.to_f }
+      Rails.cache.write(cache_key, vector, expires_in: EMBEDDINGS_CACHE_TTL)
+      vector
+    end
   rescue StandardError => e
     Rails.logger.warn("[EmbeddingClient] #{e.class}: #{e.message}") if defined?(Rails)
+    Rails.cache.write(cache_key, "fallback_unavailable", expires_in: EMBEDDINGS_CACHE_TTL) if defined?(cache_key)
     nil
   end
 
@@ -46,6 +82,8 @@ class EmbeddingClient
 
   def conn
     @conn ||= Faraday.new(url: @base_url) do |f|
+      f.options.timeout = TIMEOUT_SECONDS
+      f.options.open_timeout = TIMEOUT_SECONDS
       f.request :json
       f.response :json
       f.request :authorization, "Bearer", @api_key

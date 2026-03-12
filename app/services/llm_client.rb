@@ -23,14 +23,22 @@ class LlmClient
     return {} unless configured?
 
     client = Anthropic::Client.new(api_key: @api_key)
-    # Anthropic SDK uses system_ for the system prompt (Ruby reserved word)
-    response = client.messages.create(
-      model: model,
-      max_tokens: DEFAULT_MAX_TOKENS,
-      messages: [{ role: "user", content: user }],
-      temperature: temperature,
-      system_: system
-    )
+    attempts = 0
+    begin
+      attempts += 1
+      # Anthropic SDK uses system_ for the system prompt (Ruby reserved word)
+      response = client.messages.create(
+        model: model,
+        max_tokens: DEFAULT_MAX_TOKENS,
+        messages: [{ role: "user", content: user }],
+        temperature: temperature,
+        system_: system
+      )
+    rescue Faraday::TimeoutError, Faraday::ConnectionFailed
+      retry if attempts < 2
+      raise
+    end
+    ApiDiagnostics.record_call(service: "anthropic.messages") if defined?(ApiDiagnostics)
     text = extract_content(response)
     parse_json_from_text(text)
   rescue StandardError => e
@@ -43,7 +51,19 @@ class LlmClient
   def extract_content(response)
     content = response.content
     return content.to_s unless content.is_a?(Array)
-    content.map { |b| b["text"] || b[:text] }.join
+    content.map do |b|
+      if b.respond_to?(:text)
+        b.text.to_s
+      elsif b.respond_to?(:[])
+        begin
+          b[:text].to_s
+        rescue StandardError
+          b.to_s
+        end
+      else
+        b.to_s
+      end
+    end.join
   end
 
   def parse_json_from_text(text)

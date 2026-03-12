@@ -31,7 +31,7 @@ class MarketEmbeddingJobTest < ActiveSupport::TestCase
     )
     vector = [0.5] * 3072
     stub_client = Object.new
-    stub_client.define_singleton_method(:embed) { |text| text == "Resolved by official source." ? vector : nil }
+    stub_client.define_singleton_method(:embed) { |text, session_key: nil| text == "Resolved by official source." ? vector : nil }
 
     MarketEmbeddingJob.perform_now(market.id, embedding_client: stub_client)
 
@@ -58,7 +58,7 @@ class MarketEmbeddingJobTest < ActiveSupport::TestCase
     )
     embed_called = []
     stub_client = Object.new
-    stub_client.define_singleton_method(:embed) { |text| embed_called << text; nil }
+    stub_client.define_singleton_method(:embed) { |text, session_key: nil| embed_called << text; nil }
 
     MarketEmbeddingJob.perform_now(market.id, embedding_client: stub_client)
 

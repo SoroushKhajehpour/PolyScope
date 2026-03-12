@@ -55,7 +55,8 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
   test "perform with market_ids processes each market" do
     m1 = Market.create!(event_id: "e1", event_question: "Q1", condition_id: "0x1", category: "Politics", status: "active", resolution_criteria: "Source: official.")
     m2 = Market.create!(event_id: "e2", event_question: "Q2", condition_id: "0x2", category: "Crypto", status: "active", resolution_criteria: "Date: 2025-06-01.")
-    RiskScoreCalculationJob.perform_now(nil, market_ids: [m1.id, m2.id])
+    RiskScoreCalculationJob.perform_now(m1.id)
+    RiskScoreCalculationJob.perform_now(m2.id)
     assert RiskScore.exists?(market: m1)
     assert RiskScore.exists?(market: m2)
   end
@@ -66,19 +67,6 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
 
   test "perform with invalid market_id does not raise" do
     RiskScoreCalculationJob.perform_now(0)
-  end
-
-  test "markets_needing_scoring includes markets without risk_score" do
-    market = Market.create!(
-      event_id: "e1",
-      event_question: "Q?",
-      condition_id: "0x1",
-      category: "Politics",
-      status: "active",
-      resolution_criteria: "Resolved by official source."
-    )
-    ids = RiskScoreCalculationJob.new.send(:markets_needing_scoring).pluck(:id)
-    assert_includes ids, market.id
   end
 
   test "perform broadcasts turbo stream after scoring" do
@@ -94,7 +82,7 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
     fake_result = { score: 37, level: "medium" }
     broadcast_calls = []
 
-    fake_call = lambda do |m, persist: true|
+    fake_call = lambda do |m, persist: true, session_key: nil|
       m.risk_score || m.create_risk_score!(score: 37, level: "medium", factors: {}, computed_at: Time.current)
       fake_result
     end

@@ -2,7 +2,7 @@
 require "sidekiq/api"
 
 # Orchestrates risk scoring: targeted run by market_id(s) or batch of markets needing scoring.
-# Schedule: every 30m (config/sidekiq.yml). For each market: RiskScorer.call(market); errors logged and skipped.
+# For each market: RiskScorer.call(market); errors logged and skipped.
 class RiskScoreCalculationJob < ApplicationJob
   queue_as :default
 
@@ -10,12 +10,12 @@ class RiskScoreCalculationJob < ApplicationJob
 
   class << self
     # Enqueue only if no pending/running default-queue job exists for this market id.
-    def enqueue_unique(market_id)
+    def enqueue_unique(market_id, session_key: nil)
       mid = market_id.to_i
       return if mid <= 0
       return if queued_or_running_for?(mid)
 
-      perform_later(mid)
+      perform_later(mid, session_key: session_key)
     end
 
     private
@@ -34,29 +34,22 @@ class RiskScoreCalculationJob < ApplicationJob
     end
   end
 
-  # @param market_id [Integer, nil] Score one market
-  # @param market_ids [Array<Integer>, nil] Score many markets
-  # When both nil, select markets needing scoring (no score, stale, ending soon, or clarification added) and process up to BATCH_SIZE.
-  def perform(market_id = nil, market_ids: nil)
-    if market_id.present?
-      process_market(Market.find_by(id: market_id))
-      return
-    end
+  # @param market_id [Integer, nil] Score one market (explicit user selection only)
+  def perform(market_id = nil, session_key: nil, market_ids: nil)
+    return unless market_id.present?
 
-    if market_ids.present?
-      Market.where(id: market_ids).find_each { |m| process_market(m) }
-      return
-    end
-
-    markets_needing_scoring.limit(BATCH_SIZE).find_each { |m| process_market(m) }
+    process_market(Market.find_by(id: market_id), session_key: session_key)
   end
 
   private
 
-  def process_market(market)
+  def process_market(market, session_key: nil)
     return if market.blank?
+    return if market.resolution_criteria.to_s.strip.empty?
 
-    RiskScorer.call(market, persist: true)
+    # ✅ LLM/EMBEDDINGS CALL TRIGGER — only reachable from explicit user market selection
+    # Do not move or duplicate this call elsewhere.
+    RiskScorer.call(market, persist: true, session_key: session_key)
     risk_score = market.reload.risk_score
     return unless risk_score
 
@@ -71,16 +64,5 @@ class RiskScoreCalculationJob < ApplicationJob
     # Skip; do not retry the whole batch
   end
 
-  def markets_needing_scoring
-    t = Time.current
-    window_end = 24.hours.from_now
-
-    no_score = Market.left_joins(:risk_score).where(risk_scores: { id: nil })
-    stale = Market.joins(:risk_score).where("markets.updated_at > risk_scores.computed_at")
-    ending_soon = Market.where("end_date IS NOT NULL AND end_date >= ? AND end_date <= ?", t, window_end)
-    clarification_after = Market.joins(:risk_score).joins(:clarifications).where("clarifications.created_at > risk_scores.computed_at").distinct
-
-    ids = no_score.pluck(:id) | stale.pluck(:id) | ending_soon.pluck(:id) | clarification_after.pluck(:id)
-    Market.where(id: ids)
-  end
+  # Legacy batch scorer intentionally disabled to keep AI calls user-triggered only.
 end

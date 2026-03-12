@@ -4,13 +4,15 @@ require "test_helper"
 
 module RiskScorer
   class SourceDependencyScorerTest < ActiveSupport::TestCase
-    test "call returns hash with score and apply_source_floor" do
+    test "call returns hash with score, apply_source_floor, and available" do
       market = Market.new(resolution_criteria: "Resolution source: Federal Register. By 2025-06-01.")
       result = SourceDependencyScorer.call(market)
       assert result.key?(:score)
       assert result.key?(:apply_source_floor)
+      assert result.key?(:available)
       assert result[:score].between?(0, 20)
       assert [true, false].include?(result[:apply_source_floor])
+      assert [true, false].include?(result[:available])
     end
 
     test "specific named source scores low" do

@@ -17,27 +17,18 @@ default: &default
     - OpenStreetMap
     - wikimedia
 
-  # Override gates: floor composite when catastrophic signal present
+  # Override gates: floor weighted total when catastrophic signals present
   override_gates:
-    ambiguity_floor_threshold: 22   # If F1 > this, floor composite at ambiguity_floor_score
-    ambiguity_floor_score: 60
-    source_floor_score: 50          # Dead/manipulated source
-    similar_floor_score: 50         # Highly similar market was disputed
-    similar_cosine_threshold: 0.85  # Cosine >= this and disputed → floor
+    manipulation_floor_threshold: 70
+    manipulation_floor: 65
+    missing_criteria_floor: 55
 
   # Global bounds
   global_floor: 5
   global_ceiling: 95
 
-  # Level mapping: score range → level (configurable)
-  level_mapping:
-    low: [0, 25]
-    medium: [26, 50]
-    high: [51, 75]
-    critical: [76, 100]
-
-  # Missing factor: impute at this % of factor max (pessimistic prior)
-  impute_pessimistic_pct: 60
+  # NOTE: impute_pessimistic_pct and level_mapping removed — not used by current
+  # weighted formula. See git history if reintroducing.
 
   # Confidence tier: high (5-6 factors, age ≥7d), medium (3-4 factors or 1-7d), low (≤2 factors or <24h)
   confidence_tiers:
@@ -48,6 +39,97 @@ default: &default
 
   # LLM cache busting: bump when rubric/prompt changes
   prompt_version: "1.0"
+
+  # FALLBACK ONLY — used when LLM classification is unavailable (key absent,
+  # call failed, or rate limit hit). The LLM reads market title + resolution
+  # criteria directly and is far more accurate than this category lookup.
+  # Do not invest effort in expanding this list — it is a last resort.
+  market_type_fallback_by_category:
+    # Crypto / Finance — OBJECTIVE
+    "Crypto": CRYPTO_PRICE
+    "Cryptocurrency": CRYPTO_PRICE
+    "Bitcoin": CRYPTO_PRICE
+    "Ethereum": CRYPTO_PRICE
+    "DeFi": CRYPTO_PRICE
+    "Web3": CRYPTO_PRICE
+    "NFTs": CRYPTO_PRICE
+    "Blockchain": CRYPTO_PRICE
+    "Finance": MACRO_ECONOMIC
+    "Economics": MACRO_ECONOMIC
+    "Stocks": MACRO_ECONOMIC
+    "Markets": MACRO_ECONOMIC
+    "Commodities": MACRO_ECONOMIC
+    "Forex": MACRO_ECONOMIC
+
+    # Sports — SPORTS_OUTCOME
+    "Sports": SPORTS_OUTCOME
+    "NFL": SPORTS_OUTCOME
+    "NBA": SPORTS_OUTCOME
+    "MLB": SPORTS_OUTCOME
+    "NHL": SPORTS_OUTCOME
+    "Soccer": SPORTS_OUTCOME
+    "Football": SPORTS_OUTCOME
+    "Basketball": SPORTS_OUTCOME
+    "Baseball": SPORTS_OUTCOME
+    "Hockey": SPORTS_OUTCOME
+    "Tennis": SPORTS_OUTCOME
+    "Golf": SPORTS_OUTCOME
+    "MMA": SPORTS_OUTCOME
+    "UFC": SPORTS_OUTCOME
+    "Boxing": SPORTS_OUTCOME
+    "Olympics": SPORTS_OUTCOME
+    "Racing": SPORTS_OUTCOME
+    "F1": SPORTS_OUTCOME
+    "Esports": SPORTS_OUTCOME
+    "College Sports": SPORTS_OUTCOME
+
+    # Politics — ELECTION_POLITICAL
+    "Politics": ELECTION_POLITICAL
+    "Elections": ELECTION_POLITICAL
+    "US Politics": ELECTION_POLITICAL
+    "Global Politics": ELECTION_POLITICAL
+    "Government": ELECTION_POLITICAL
+    "Policy": ELECTION_POLITICAL
+    "Law": ELECTION_POLITICAL
+    "Legislation": ELECTION_POLITICAL
+    "Supreme Court": ELECTION_POLITICAL
+    "Congress": ELECTION_POLITICAL
+
+    # Geopolitical — GEOPOLITICAL
+    "Geopolitics": GEOPOLITICAL
+    "International": GEOPOLITICAL
+    "War": GEOPOLITICAL
+    "Conflict": GEOPOLITICAL
+    "Diplomacy": GEOPOLITICAL
+    "Foreign Policy": GEOPOLITICAL
+
+    # Science / Tech — MACRO_ECONOMIC (semi-objective)
+    "Science": MACRO_ECONOMIC
+    "Technology": MACRO_ECONOMIC
+    "AI": MACRO_ECONOMIC
+    "Space": MACRO_ECONOMIC
+    "Climate": MACRO_ECONOMIC
+    "Environment": MACRO_ECONOMIC
+    "Health": MACRO_ECONOMIC
+    "Medicine": MACRO_ECONOMIC
+
+    # Subjective / Entertainment
+    "Entertainment": SUBJECTIVE_QUALITATIVE
+    "Pop Culture": SUBJECTIVE_QUALITATIVE
+    "Celebrity": SUBJECTIVE_QUALITATIVE
+    "Awards": SUBJECTIVE_QUALITATIVE
+    "TV": SUBJECTIVE_QUALITATIVE
+    "Film": SUBJECTIVE_QUALITATIVE
+    "Music": SUBJECTIVE_QUALITATIVE
+
+    # Extra categories observed in local tests/data
+    "Society": MACRO_ECONOMIC
+    "World": GEOPOLITICAL
+    "General": MACRO_ECONOMIC
+    "Sci": MACRO_ECONOMIC
+    "MyString": MACRO_ECONOMIC
+
+    default: SUBJECTIVE_QUALITATIVE
 
 development:
   <<: *default

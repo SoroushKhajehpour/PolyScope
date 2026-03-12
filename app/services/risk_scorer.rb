@@ -1,170 +1,432 @@
 # frozen_string_literal: true
 
-# Orchestrates six-factor risk scoring. Commit 11: composite assembly, override gates, persistence.
-# Returns full result hash and persists to RiskScore.
+# RISK SCORING FORMULA — READ BEFORE MODIFYING
+#
+# Formula:
+#   total = (resolution_clarity × 0.38) + (time_horizon × 0.17)
+#         + (historical_accuracy × 0.18) + (manipulation_risk × 0.17)
+#         + (information_asymmetry × 0.10)
+#
+# resolution_clarity = (type_base × type_base_weight) + (ambiguity_text_score × (1 - type_base_weight))
+#   └─ ambiguity_text_score can be overridden by OpenAI misinterpretation analysis
+#      (NONE -> floor 15, HIGH -> floor 75)
+#
+# Liquidity is computed but NOT included in total_score. It is returned as
+# a separate parallel signal: liquidity_risk.
+#
+# OpenAI is called in TWO places:
+#   1. Embeddings — SimilarOutcomesScorer / MarketEmbeddingJob
+#   2. Misinterpretation analysis — ResolutionMisinterpretationAnalyzer
+#
+# Both calls are cache-first (24h), explicit-select trigger only, dedup locked,
+# budget-limited, and fallback-safe.
+#
+# Market type source:
+#   1) LLM from ResolutionMisinterpretationAnalyzer (preferred)
+#   2) config/risk_scoring.yml -> market_type_fallback_by_category (fallback only)
+#
+# Override gates:
+#   - known manipulated source + manipulation_risk >= threshold -> floor score
+#   - missing resolution_criteria -> floor score
 module RiskScorer
+  FACTOR_WEIGHTS = {
+    resolution_clarity: 0.38,
+    time_horizon: 0.17,
+    historical_accuracy: 0.18,
+    manipulation_risk: 0.17,
+    information_asymmetry: 0.10
+  }.freeze
+
+  # Single source of truth until schema migration to descriptive columns.
+  # TODO: migrate risk_scores legacy factor columns to descriptive names.
+  FACTOR_NAME_MAP = {
+    resolution_clarity: :f1_ambiguity,
+    information_asymmetry: :f2_source_dep,
+    manipulation_risk: :f3_dispute_rate,
+    time_horizon: :f4_time_spec,
+    liquidity: :f5_clarifications,
+    historical_accuracy: :f6_similar_outcomes
+  }.freeze
+
+  HISTORICAL_ACCURACY_TYPE_BASE = {
+    "CRYPTO_PRICE" => 20,
+    "SPORTS_OUTCOME" => 22,
+    "ELECTION_POLITICAL" => 38,
+    "MACRO_ECONOMIC" => 35,
+    "GEOPOLITICAL" => 55,
+    "SUBJECTIVE_QUALITATIVE" => 65
+  }.freeze
+
+  LEVEL_BANDS = [
+    [0, 25, "low"],
+    [26, 50, "moderate"],
+    [51, 75, "high"],
+    [76, 100, "very_high"]
+  ].freeze
+
   class << self
-    # @param market [Market] Must respond to resolution_criteria, category, clarifications, end_date, market_embedding
-    # @param persist [Boolean] If true (default), save to RiskScore
-    # @return [Hash] score, level, f1–f6, factor_metadata, override_gate_applied, factors_imputed, etc.
-    def call(market, persist: true)
-      text = market.respond_to?(:resolution_criteria) ? market.resolution_criteria : market.to_s
-      f1_regex = RiskScorer::AmbiguityRegexScorer.call(text)
-      f1 = RiskScorer::AmbiguityLlmScorer.call(text, regex_pre_score: f1_regex)
-      f2_result = RiskScorer::SourceDependencyScorer.call(market)
-      f6_result = RiskScorer::SimilarOutcomesScorer.call(market)
+    def call(market, persist: true, session_key: nil)
+      resolution_analysis = RiskScorer::ResolutionMisinterpretationAnalyzer.call(market, session_key: session_key)
+      market_type_result = resolve_market_type(market, resolution_analysis)
+      market_type = market_type_result[:market_type]
+      source_result = RiskScorer::SourceDependencyScorer.call(market)
+      similar_result = RiskScorer::SimilarOutcomesScorer.call(market)
+      liquidity_risk = liquidity_score(market)
+      breakdown = compute_breakdown(
+        market: market,
+        market_type: market_type,
+        market_type_confidence: market_type_result[:confidence],
+        resolution_analysis: resolution_analysis,
+        source_result: source_result,
+        similar_result: similar_result
+      )
+      total = weighted_score(breakdown)
+      gate = apply_override_gates(total, breakdown, market)
+      score = gate[:score]
+      level = level_for(score)
 
-      raw_factors = {
-        f1: to_numeric(f1),
-        f2: to_numeric(f2_result[:score]),
-        f3: to_numeric(RiskScorer::DisputeRateScorer.call(market)),
-        f4: to_numeric(RiskScorer::TimeSpecScorer.call(text)),
-        f5: to_numeric(RiskScorer::ClarificationScorer.call(market)),
-        f6: to_numeric(f6_result[:score])
+      data_availability = {
+        llm_available: !resolution_analysis[:from_fallback],
+        embeddings_available: similar_result[:available],
+        resolution_criteria: market.respond_to?(:resolution_criteria) ? market.resolution_criteria.to_s : "",
+        market_type_confidence: market_type_result[:confidence]
       }
+      confidence = confidence_tier_for(score, data_availability)
+      explanation = RiskScorer::ExplanationGenerator.call(
+        market: market,
+        market_type: market_type,
+        breakdown: breakdown,
+        score: score,
+        liquidity_risk: liquidity_risk,
+        confidence: confidence,
+        resolution_analysis: resolution_analysis
+      )
 
-      weights = RiskScoringConfig.factor_weights
-      factors_imputed = []
-      f1_val = impute(raw_factors[:f1], weights[:f1_ambiguity], "f1_ambiguity", factors_imputed)
-      f2_val = impute(raw_factors[:f2], weights[:f2_source_dep], "f2_source_dep", factors_imputed)
-      f3_val = impute(raw_factors[:f3], weights[:f3_dispute_rate], "f3_dispute_rate", factors_imputed)
-      f4_val = impute(raw_factors[:f4], weights[:f4_time_spec], "f4_time_spec", factors_imputed)
-      f5_val = impute(raw_factors[:f5], weights[:f5_clarifications], "f5_clarifications", factors_imputed)
-      f6_val = impute(raw_factors[:f6], weights[:f6_similar_outcomes], "f6_similar_outcomes", factors_imputed)
-
-      factor_values = { f1: f1_val, f2: f2_val, f3: f3_val, f4: f4_val, f5: f5_val, f6: f6_val }
-      weight_keys = { f1: :f1_ambiguity, f2: :f2_source_dep, f3: :f3_dispute_rate, f4: :f4_time_spec, f5: :f5_clarifications, f6: :f6_similar_outcomes }
-      composite = composite_with_redistribution(factor_values, weight_keys, weights, factors_imputed)
-
-      factor_metadata = (f6_result[:factor_metadata] || {}).dup
-
-      override_gate_applied = nil
-      if f1_val > RiskScoringConfig.ambiguity_floor_threshold
-        composite = [composite, RiskScoringConfig.ambiguity_floor_score].max
-        override_gate_applied = "ambiguity_floor"
-      end
-      if f2_result[:apply_source_floor]
-        composite = [composite, RiskScoringConfig.source_floor_score].max
-        override_gate_applied = "source_floor"
-      end
-      if similar_disputed_above_threshold?(factor_metadata)
-        composite = [composite, RiskScoringConfig.similar_floor_score].max
-        override_gate_applied = "similar_floor"
-      end
-
-      composite = composite.clamp(RiskScoringConfig.global_floor, RiskScoringConfig.global_ceiling)
-      level = RiskScoringConfig.level_for_score(composite)
-      confidence_tier = confidence_tier_for(factors_imputed.size, market)
-      factor_metadata[:confidence_tier] = confidence_tier
+      unavailable_sources = confidence[:missing_sources].dup
 
       result = {
-        score: composite,
+        score: score,
         level: level,
-        f4: f4_val.to_i,
-        f1_regex: f1_regex,
-        f2_regex: RiskScorer::SourceDependencyRegexScorer.call(text),
-        f1: f1_val,
-        f2: f2_val.to_i,
-        f3: f3_val.to_i,
-        f5: f5_val,
-        f6: f6_val.to_i,
-        apply_source_floor: f2_result[:apply_source_floor],
-        factor_metadata: factor_metadata,
-        override_gate_applied: override_gate_applied,
-        factors_imputed: factors_imputed,
-        confidence_tier: confidence_tier
+        market_type: market_type.to_s.upcase.to_sym,
+        market_type_source: market_type_result[:source],
+        resolution_clarity_base: breakdown.dig(:resolution_clarity, :base),
+        type_base_weight: breakdown.dig(:resolution_clarity, :type_base_weight),
+        factors: breakdown.transform_values { |v| v[:score].round },
+        liquidity_risk: liquidity_risk,
+        confidence_tier: confidence[:tier].to_s,
+        confidence_note: confidence[:note],
+        factors_imputed: [],
+        override_gate_applied: gate[:applied],
+        factor_metadata: {
+          market_type: market_type,
+          market_type_source: market_type_result[:source],
+          market_type_reasoning: market_type_result[:reasoning],
+          market_type_confidence: market_type_result[:confidence],
+          breakdown: breakdown.transform_values { |v| v.transform_keys(&:to_s) },
+          explanation: explanation,
+          resolution_analysis: resolution_analysis,
+          confidence: confidence,
+          data_sources_unavailable: unavailable_sources
+        }
       }
 
-      if persist && market.respond_to?(:id) && market.id.present?
-        persist_risk_score!(market, result)
-      end
-
+      persist_risk_score!(market, result) if persist && market.respond_to?(:id) && market.id.present?
       result
     end
 
     private
 
-    def to_numeric(val)
-      return nil if val.nil?
-      Float(val)
-    rescue ArgumentError, TypeError
-      nil
+    def compute_breakdown(market:, market_type:, market_type_confidence:, resolution_analysis:, source_result:, similar_result:)
+      clarity = resolution_clarity_components(market, market_type, market_type_confidence, resolution_analysis)
+      {
+        resolution_clarity: {
+          score: clarity[:score],
+          base: clarity[:base],
+          type_base_weight: clarity[:type_base_weight],
+          weight: FACTOR_WEIGHTS[:resolution_clarity]
+        },
+        time_horizon: {
+          score: time_horizon_score(market),
+          weight: FACTOR_WEIGHTS[:time_horizon]
+        },
+        historical_accuracy: {
+          score: historical_accuracy_score(market, market_type, similar_result),
+          weight: FACTOR_WEIGHTS[:historical_accuracy]
+        },
+        manipulation_risk: {
+          score: manipulation_risk_score(market, market_type, source_result),
+          weight: FACTOR_WEIGHTS[:manipulation_risk]
+        },
+        information_asymmetry: {
+          score: information_asymmetry_score(market, market_type),
+          weight: FACTOR_WEIGHTS[:information_asymmetry]
+        }
+      }
     end
 
-    def impute(val, max, factor_name, factors_imputed)
-      return val.round(2) if val.present? && max.present?
-      pct = RiskScoringConfig.impute_pessimistic_pct.to_f / 100.0
-      imputed = (max.to_f * pct).round(2)
-      factors_imputed << factor_name
-      imputed
+    def weighted_score(breakdown)
+      raw = breakdown.sum { |_name, v| v[:score].to_f * v[:weight].to_f }
+      raw.round.clamp(0, 100)
     end
 
-    # When all factors present: sum. When any missing: redistribute weight proportionally (composite from available only, scaled to 100).
-    def composite_with_redistribution(factor_values, weight_keys, weights, factors_imputed)
-      present_keys = factor_values.keys.reject { |k| factors_imputed.include?(weight_keys[k].to_s) }
-      if present_keys.size == 6
-        (factor_values[:f1] + factor_values[:f2] + factor_values[:f3] + factor_values[:f4] + factor_values[:f5] + factor_values[:f6]).round
-      elsif present_keys.empty?
-        (RiskScoringConfig.impute_pessimistic_pct.to_f / 100.0 * 100).round
+    def level_for(score)
+      LEVEL_BANDS.each do |min, max, label|
+        return label if score >= min && score <= max
+      end
+      "moderate"
+    end
+
+    def resolution_clarity_components(market, market_type, market_type_confidence, resolution_analysis)
+      text = market.respond_to?(:resolution_criteria) ? market.resolution_criteria.to_s : ""
+      if text.strip.empty?
+        return { score: 95, base: 95, type_base_weight: type_base_weight_for(market_type_confidence) }
+      end
+
+      base = case market_type
+      when "CRYPTO_PRICE" then 10
+      when "SPORTS_OUTCOME" then 14
+      when "ELECTION_POLITICAL" then 45
+      when "MACRO_ECONOMIC" then 50
+      when "GEOPOLITICAL" then 80
+      else 85
+      end
+
+      ambiguity_text_score = (RiskScorer::AmbiguityRegexScorer.call(text) * 4).to_f.clamp(0, 100)
+      ambiguity_override = case resolution_analysis[:ambiguityLevel].to_s.upcase
+      when "HIGH" then [ambiguity_text_score, 75].max
+      when "NONE" then [ambiguity_text_score, 15].min
+      else ambiguity_text_score
+      end
+
+      type_weight = type_base_weight_for(market_type_confidence)
+      adjusted = (base * type_weight) + (ambiguity_override * (1.0 - type_weight))
+      {
+        score: adjusted.round.clamp(0, 100),
+        base: base,
+        type_base_weight: type_weight
+      }
+    end
+
+    def time_horizon_score(market)
+      return 60 unless market.respond_to?(:end_date) && market.end_date.present?
+
+      days = ((market.end_date.to_time - Time.current) / 1.day).round
+      return 80 if days > 365
+      return 65 if days > 180
+      return 50 if days > 90
+      return 35 if days > 30
+      return 20 if days > 7
+
+      10
+    end
+
+    def liquidity_score(market)
+      vol = market.respond_to?(:volume) ? market.volume.to_f : 0.0
+      return 80 if vol <= 0
+      return 10 if vol >= 5_000_000
+      return 20 if vol >= 1_000_000
+      return 35 if vol >= 250_000
+      return 50 if vol >= 50_000
+      return 65 if vol >= 10_000
+
+      80
+    end
+
+    # historical_accuracy sub-score composition:
+    #   60% — market type base (20–70): prior expectation of accuracy by category
+    #   25% — dispute rate (DisputeRateScorer × 5): UMA on-chain dispute history
+    #   15% — similar outcomes (SimilarOutcomesScorer × 10): embedding-matched markets
+    #
+    # Rationale: type base dominates when embeddings are unavailable; dispute rate
+    # is more reliable than similar-markets signal and weighted higher accordingly.
+    # To retune: adjust multipliers so they continue to sum to 100% of sub-score range.
+    def historical_accuracy_score(market, market_type, similar_result)
+      type_base = HISTORICAL_ACCURACY_TYPE_BASE.fetch(market_type.to_s, 65)
+
+      dispute_component = RiskScorer::DisputeRateScorer.call(market).to_f * 5.0
+      similar_component = similar_result[:score].to_f * 10.0
+      ((type_base * 0.6) + (dispute_component * 0.25) + (similar_component * 0.15)).round.clamp(0, 100)
+    rescue StandardError
+      type_base
+    end
+
+    def manipulation_risk_score(market, market_type, source_result)
+      base = case market_type
+      when "CRYPTO_PRICE" then 25
+      when "SPORTS_OUTCOME" then 25
+      when "ELECTION_POLITICAL" then 60
+      when "MACRO_ECONOMIC" then 55
+      when "GEOPOLITICAL" then 75
+      else 70
+      end
+
+      vol = market.respond_to?(:volume) ? market.volume.to_f : 0.0
+      base += 15 if vol > 0 && vol < 50_000
+
+      base += 10 if source_result[:apply_source_floor]
+      base.clamp(0, 100)
+    rescue StandardError
+      base.clamp(0, 100)
+    end
+
+    def information_asymmetry_score(market, market_type)
+      base = case market_type
+      when "CRYPTO_PRICE" then 20
+      when "SPORTS_OUTCOME" then 25
+      when "ELECTION_POLITICAL" then 55
+      when "MACRO_ECONOMIC" then 60
+      when "GEOPOLITICAL" then 70
+      else 65
+      end
+
+      text = market.respond_to?(:resolution_criteria) ? market.resolution_criteria.to_s : ""
+      base += 15 if text.match?(/\binsider|private source|unpublished|anonymous source\b/i)
+      base.clamp(0, 100)
+    end
+
+    def confidence_tier_for(score, data_availability)
+      base_tier = if score <= 35
+        :high
+      elsif score <= 65
+        :medium
       else
-        sum_val = present_keys.sum { |k| factor_values[k].to_f }
-        sum_max = present_keys.sum { |k| weights[weight_keys[k]].to_f }
-        (sum_max.positive? ? (sum_val / sum_max * 100.0).round : 0)
+        :low
+      end
+
+      missing_sources = []
+      missing_sources << "AI refinement" unless data_availability[:llm_available]
+      missing_sources << "similar markets analysis" unless data_availability[:embeddings_available]
+      missing_sources << "resolution criteria" if data_availability[:resolution_criteria].to_s.strip.empty?
+
+      degraded = case missing_sources.length
+      when 0 then base_tier
+      when 1 then degrade_once(base_tier)
+      else :low
+      end
+
+      note = missing_sources.any? ? "Confidence reduced: #{missing_sources.join(', ')} unavailable." : nil
+      if data_availability[:market_type_confidence].to_s.upcase == "LOW"
+        low_conf_note = "Market type was difficult to classify - risk score leans more heavily on resolution criteria text analysis."
+        note = [note, low_conf_note].compact.join(" ")
+      end
+
+      {
+        tier: degraded,
+        missing_sources: missing_sources,
+        note: note.presence
+      }
+    end
+
+    def type_base_weight_for(market_type_confidence)
+      case market_type_confidence.to_s.upcase
+      when "HIGH" then 0.50
+      when "MEDIUM" then 0.40
+      when "LOW" then 0.25
+      else 0.40
       end
     end
 
-    def similar_disputed_above_threshold?(factor_metadata)
-      similar_scores = factor_metadata[:similar_scores] || {}
-      threshold = RiskScoringConfig.similar_cosine_threshold
-      similar_scores.each do |market_id, data|
-        next unless (data[:similarity] || 0).to_f >= threshold
-        other = Market.find_by(id: market_id)
-        return true if other&.disputes&.any?
+    def degrade_once(tier)
+      { high: :medium, medium: :low, low: :low }.fetch(tier, :low)
+    end
+
+    def apply_override_gates(total, breakdown, market)
+      gates = RiskScoringConfig.override_gates
+      manipulated_threshold = gates[:manipulation_floor_threshold].to_i
+      manipulated_floor = gates[:manipulation_floor].to_i
+      missing_criteria_floor = gates[:missing_criteria_floor].to_i
+
+      if breakdown[:manipulation_risk][:score].to_i >= manipulated_threshold && known_manipulated_source?(market)
+        return { score: [total, manipulated_floor].max, applied: "manipulation_floor" }
       end
-      false
+
+      if market.respond_to?(:resolution_criteria) && market.resolution_criteria.to_s.strip.empty?
+        return { score: [total, missing_criteria_floor].max, applied: "missing_criteria_floor" }
+      end
+
+      { score: total, applied: nil }
     end
 
-    # HIGH: 5-6 factors and age ≥7d; MEDIUM: 3-4 factors or 1-7d; LOW: ≤2 factors or age < low_max_age_days.
-    def confidence_tier_for(imputed_count, market)
-      factor_count = 6 - imputed_count
-      age_days = market_age_days(market)
+    def known_manipulated_source?(market)
+      text = market.respond_to?(:resolution_criteria) ? market.resolution_criteria.to_s : ""
+      return false if text.strip.empty?
 
-      return "low" if factor_count < RiskScoringConfig.medium_confidence_min_factors || age_days < RiskScoringConfig.low_confidence_max_age_days
-      return "high" if factor_count >= RiskScoringConfig.high_confidence_min_factors && age_days >= RiskScoringConfig.high_confidence_min_age_days
-      "medium"
+      RiskScoringConfig.known_manipulated_sources.any? do |source|
+        text.match?(/\b#{Regexp.escape(source)}\b/i)
+      end
     end
 
-    def market_age_days(market)
-      return 0 unless market.respond_to?(:created_at) && market.created_at.present?
-      ((Time.current - market.created_at.to_time) / 1.day).round(2)
+    def resolve_market_type(market, llm_result)
+      llm_result ||= {}
+      llm_market_type = llm_result[:market_type].to_s.upcase.presence
+      confidence = llm_result[:market_type_confidence].to_s.upcase.presence
+      reasoning = llm_result[:market_type_reasoning].to_s.presence
+
+      if llm_market_type.present?
+        log_market_type_source(market, :llm, reasoning)
+        return {
+          market_type: llm_market_type,
+          source: :llm,
+          confidence: confidence || "MEDIUM",
+          reasoning: reasoning
+        }
+      end
+
+      fallback_type = yaml_category_lookup(market.respond_to?(:category) ? market.category : nil)
+      log_market_type_source(market, :yaml_fallback, market.respond_to?(:category) ? market.category : nil)
+      {
+        market_type: fallback_type,
+        source: :yaml_fallback,
+        confidence: "LOW",
+        reasoning: "Fallback category mapping used because LLM market_type was unavailable."
+      }
+    end
+
+    def yaml_category_lookup(category)
+      RiskScoringConfig.market_type_lookup(category)[:market_type]
+    end
+
+    def log_market_type_source(market, source, detail)
+      if source == :yaml_fallback
+        Rails.logger.warn(
+          "[RiskScorer] market_type falling back to YAML category lookup for '#{market.respond_to?(:event_question) ? market.event_question : "Unknown market"}' (category: '#{market.respond_to?(:category) ? market.category : ""}'). LLM unavailable."
+        )
+      else
+        Rails.logger.info("[RiskScorer] market_type inferred from LLM for market '#{market.respond_to?(:event_question) ? market.event_question : "Unknown market"}'#{detail.present? ? ": #{detail}" : ""}")
+      end
     end
 
     def persist_risk_score!(market, result)
       record = RiskScore.find_or_initialize_by(market: market)
+      legacy_assignments = FACTOR_NAME_MAP.each_with_object({}) do |(factor_key, column_name), h|
+        next unless record.has_attribute?(column_name)
+        value = if factor_key == :liquidity
+          result[:liquidity_risk]
+        else
+          result.dig(:factors, factor_key)
+        end
+        h[column_name] = value.to_f.round
+      end
+
       record.assign_attributes(
         score: result[:score],
-        level: result[:level],
+        level: normalize_level_for_record(result[:level]),
         computed_at: Time.current,
         confidence_tier: result[:confidence_tier],
-        f1_ambiguity: result[:f1]&.round,
-        f2_source_dep: result[:f2],
-        f3_dispute_rate: result[:f3],
-        f4_time_spec: result[:f4],
-        f5_clarifications: result[:f5]&.round,
-        f6_similar_outcomes: result[:f6],
         factors_imputed: result[:factors_imputed] || [],
         override_gate_applied: result[:override_gate_applied],
         factor_metadata: deep_stringify_keys(result[:factor_metadata] || {}),
-        factors: {
-          f1: result[:f1],
-          f2: result[:f2],
-          f3: result[:f3],
-          f4: result[:f4],
-          f5: result[:f5],
-          f6: result[:f6]
-        }.stringify_keys
+        factors: deep_stringify_keys(result[:factors] || {}),
+        **legacy_assignments
       )
       record.save!
+    end
+
+    def normalize_level_for_record(level)
+      return "critical" if level == "very_high"
+      return "medium" if level == "moderate"
+
+      level
     end
 
     def deep_stringify_keys(obj)

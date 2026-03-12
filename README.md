@@ -1,17 +1,21 @@
 # README
 
-Polyscope is a Polymarket trading bot that aims to generate profit by identifying and acting on probability mismatches in markets. It:
+## How Risk Scores Are Calculated
 
-Tracks market prices and metadata via the Gamma API
+Each market gets six sub-scores (0 to 100), and then PolyScope computes a weighted average:
 
-Monitors and decodes on-chain trades from the CTF Exchange contract on Polygon
+- Resolution Clarity (35%): how objective and verifiable the market outcome is.
+- Time Horizon (15%): how far away the resolution date is.
+- Liquidity (10%): execution risk from shallow order books.
+- Historical Accuracy (15%): how reliably similar markets resolve.
+- Manipulation Risk (15%): susceptibility to coordinated influence.
+- Information Asymmetry (10%): whether key information is unevenly distributed.
 
-Automates trade execution securely via the CLOB API with EIP-712 wallet authentication
+The final score maps to:
 
-Provides a foundation for data-driven trading strategies and analytics
+- 0-25: Low risk
+- 26-50: Moderate risk
+- 51-75: High risk
+- 76-100: Very high risk
 
-* Dev Workflow
-
-Terminal 1 - Rails: bin/dev
-Terminal 2 - Sidekiq: bundle exec sidekiq
-Terminal 3 - Redis: redis-server
+PolyScope also shows a plain-English "Why this score?" explanation with a per-factor breakdown so users can see what drove the result and what kept it lower.

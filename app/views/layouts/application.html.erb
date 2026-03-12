@@ -18,6 +18,7 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= turbo_include_tags %>
   </head>
 
   <body class="flex min-h-screen flex-col bg-background text-text-primary">
@@ -26,5 +27,42 @@
       <%= yield %>
     </main>
     <%= render Layout::FooterComponent.new %>
+    <% if Rails.env.development? %>
+      <div id="dev_api_diagnostics_overlay" style="position:fixed;right:12px;bottom:12px;z-index:9999;max-width:340px;background:rgba(15,23,42,.95);color:#e2e8f0;border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:12px;font-size:11px;line-height:1.4;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;">
+        Loading API diagnostics...
+      </div>
+      <script>
+        (function() {
+          function sectionHtml(title, s) {
+            if (!s) return "<strong>" + title + "</strong><br>Calls: 0<br>";
+            var lines = ["<strong>" + title + "</strong>", "Calls: " + (s.calls || 0), "Cache: " + (s.cache_hit_rate != null ? s.cache_hit_rate + "%" : "—")];
+            if (s.rate_limit && (s.rate_limit.usage_pct != null || s.rate_limit.remaining != null)) {
+              if (s.rate_limit.usage_pct != null) lines.push("Usage: " + s.rate_limit.usage_pct + "%");
+              if (s.rate_limit.remaining != null) lines.push("Remaining: " + s.rate_limit.remaining);
+            }
+            return lines.join("<br>") + "<br>";
+          }
+          function renderDiag(data) {
+            var el = document.getElementById("dev_api_diagnostics_overlay");
+            if (!el) return;
+            var html = "<strong>API Diagnostics</strong><br>";
+            html += sectionHtml("OpenAI", data.openai);
+            html += sectionHtml("Anthropic", data.anthropic);
+            html += "—<br>Total calls: " + (data.total_calls || 0) + " &middot; Deduped: " + (data.deduped_calls || 0);
+            el.innerHTML = html;
+          }
+
+          function poll() {
+            fetch("/dev/api_diagnostics", { headers: { "Accept": "application/json" } })
+              .then(function(r) { return r.json(); })
+              .then(renderDiag)
+              .catch(function() {});
+          }
+
+          poll();
+          setInterval(poll, 4000);
+        })();
+      </script>
+    <% end %>
   </body>
 </html>
