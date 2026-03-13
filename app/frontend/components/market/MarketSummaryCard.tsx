@@ -30,6 +30,14 @@ function stripRedundantWord(word: string, value: string): string {
   return value.replace(re, "").replace(/\s+/g, " ").trim().replace(/^\w/, (c) => c.toUpperCase())
 }
 
+function confidenceAccent(level: string): ChipAccent {
+  const l = level.toLowerCase()
+  if (l.includes("high")) return "emerald"
+  if (l.includes("medium") || l.includes("moderate")) return "amber"
+  if (l.includes("low")) return "red"
+  return "amber"
+}
+
 function liquidityAccent(level: string): ChipAccent {
   const l = level.toLowerCase()
   if (l.includes("high")) return "emerald"
@@ -46,12 +54,12 @@ export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps)
   const summaryText = riskScore.summary || riskScore.confidence_note || "No summary available."
 
   const riskAccent = chipAccent(riskScore.level)
-  const confidenceAccent = chipAccent(riskScore.confidence_tier ?? "low")
+  const confAccent = confidenceAccent(riskScore.confidence_tier ?? "unknown")
   const liqAccent = liquidityAccent(riskScore.liquidity?.label ?? "unknown")
 
   const chips: Array<{ tag: string; value: string; accent: ChipAccent }> = [
     { tag: "RISK", value: riskLevel, accent: riskAccent },
-    { tag: "CONFIDENCE", value: confidence, accent: confidenceAccent },
+    { tag: "CONFIDENCE", value: confidence, accent: confAccent },
     { tag: "LIQUIDITY", value: liquidity, accent: liqAccent },
   ]
 
