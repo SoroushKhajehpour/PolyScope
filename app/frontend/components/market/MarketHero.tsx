@@ -1,69 +1,99 @@
-import type { MarketProps } from "@/types/market"
-import type { RiskScoreProps } from "@/types/market"
+import type { MarketProps, RiskScoreProps } from "@/types/market"
 import { formatVolume } from "@/lib/utils"
-import ScoreRing from "./ScoreRing"
+import ScoreGauge from "./ScoreRing"
 
 interface MarketHeroProps {
   market: MarketProps
   riskScore?: RiskScoreProps | null
 }
 
-function MarketMeta({ market }: { market: MarketProps }) {
-  const endDateStr = market.end_date
-    ? new Date(market.end_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : null
-
+function MetaField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 flex-1 space-y-4">
-      <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#1f2937] md:hidden">
-        {market.event_image ? (
-          <img
-            src={market.event_image}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-white/50">
-            No img
-          </div>
-        )}
-      </div>
-      <div>
-        <span className="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300/70">
-          {market.category || "Uncategorized"}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-slate-400">
-        {endDateStr && <span>Ends {endDateStr}</span>}
-        {endDateStr && market.volume != null && <span aria-hidden>·</span>}
-        {market.volume != null && <span>{formatVolume(market.volume)} volume</span>}
-      </div>
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </span>
+      <span className="font-mono text-sm font-medium tabular-nums text-slate-50">
+        {value}
+      </span>
     </div>
   )
 }
 
 export default function MarketHero({ market, riskScore }: MarketHeroProps) {
-  const riskHeading = riskScore?.level
-    ? `${riskScore.level.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())} Risk`
+  const endDateStr = market.end_date
+    ? new Date(market.end_date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null
+
+  const riskLabel = riskScore?.level
+    ? riskScore.level.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
     : null
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-linear-to-br from-[#11192B]/90 via-[#0F1628]/85 to-[#0C1220]/90 p-7 backdrop-blur-xl sm:p-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_45%),radial-gradient(circle_at_85%_30%,rgba(56,189,248,0.12),transparent_40%)]" />
-      <div className="relative flex flex-wrap items-center justify-center gap-7 text-center">
-        <MarketMeta market={market} />
+    <section className="rounded-md border border-white/8 bg-white/3">
+      {/* Top row: identity + gauge */}
+      <div className="flex items-start justify-between gap-6 p-6 sm:p-7">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-white/8 bg-white/4">
+            {market.event_image ? (
+              <img
+                src={market.event_image}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[9px] font-medium uppercase tracking-wider text-slate-600">
+                —
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 space-y-2.5">
+            <h1 className="text-lg font-semibold leading-snug tracking-[-0.01em] text-white sm:text-xl">
+              {market.event_question}
+            </h1>
+            <span className="inline-block border border-white/8 bg-white/4 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {market.category || "Uncategorized"}
+            </span>
+          </div>
+        </div>
 
+        {/* Right: risk gauge */}
+        <div className="hidden shrink-0 sm:block">
+          {riskScore ? (
+            <ScoreGauge score={riskScore.score} label={riskLabel} />
+          ) : (
+            <div className="flex h-[72px] w-[72px] items-center justify-center rounded border border-white/8 bg-white/3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-slate-600">
+                N/A
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="h-px bg-white/6" />
+
+      {/* Bottom row: metadata ribbon */}
+      <div className="flex items-center gap-8 px-6 py-4 sm:px-7">
         {riskScore && (
-          <div className="flex shrink-0 flex-col items-center gap-2">
-            <ScoreRing score={riskScore.score} />
-            {riskHeading && <p className="text-base font-semibold text-slate-200">{riskHeading}</p>}
+          <div className="sm:hidden">
+            <ScoreGauge score={riskScore.score} label={riskLabel} size="sm" />
           </div>
         )}
-        {!riskScore && (
-          <div className="rounded-2xl border border-white/10 bg-white/3 px-5 py-4 text-sm text-slate-400">
-            Risk model pending
-          </div>
+        {endDateStr && <MetaField label="Expires" value={endDateStr} />}
+        {market.volume != null && (
+          <MetaField label="Volume" value={formatVolume(market.volume)} />
+        )}
+        {riskScore?.confidence_tier && (
+          <MetaField
+            label="Confidence"
+            value={riskScore.confidence_tier.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
+          />
         )}
       </div>
     </section>

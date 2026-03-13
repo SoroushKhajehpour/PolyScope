@@ -4,50 +4,89 @@ interface MarketSummaryCardProps {
   riskScore: RiskScoreProps
 }
 
-function confidenceLabel(tier: string | null): string {
-  if (!tier) return "Unknown confidence"
-  const normalized = tier.replace(/_/g, " ").toLowerCase()
-  return `${normalized.replace(/^\w/, (c) => c.toUpperCase())} confidence`
+type ChipAccent = "emerald" | "amber" | "red"
+
+function chipAccent(level: string): ChipAccent {
+  const l = level.toLowerCase()
+  if (l === "high" || l === "very_high" || l === "critical") return "red"
+  if (l === "medium" || l === "moderate") return "amber"
+  return "emerald"
 }
 
-function liquidityLabel(label: string | null): string {
-  if (!label) return "Unknown liquidity"
-  const normalized = label.replace(/_/g, " ").toLowerCase()
-  return `${normalized.replace(/^\w/, (c) => c.toUpperCase())} liquidity`
+const ACCENT_STYLES: Record<ChipAccent, { border: string; text: string }> = {
+  emerald: { border: "border-l-emerald-500/60", text: "text-emerald-400" },
+  amber: { border: "border-l-amber-500/60", text: "text-amber-400" },
+  red: { border: "border-l-red-500/60", text: "text-red-400" },
+}
+
+function formatValue(value: string | null, fallback: string): string {
+  if (!value) return fallback
+  const formatted = value.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+  return formatted
+}
+
+function stripRedundantWord(word: string, value: string): string {
+  const re = new RegExp(`\\b${word}\\b`, "i")
+  return value.replace(re, "").replace(/\s+/g, " ").trim().replace(/^\w/, (c) => c.toUpperCase())
+}
+
+function liquidityAccent(level: string): ChipAccent {
+  const l = level.toLowerCase()
+  if (l.includes("high")) return "emerald"
+  if (l.includes("moderate") || l.includes("medium")) return "amber"
+  if (l.includes("low")) return "red"
+  return "amber"
 }
 
 export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps) {
-  const riskLevel = riskScore.level
-    .replace(/_/g, " ")
-    .replace(/^\w/, (c) => c.toUpperCase())
-
+  const riskLevel = formatValue(riskScore.level, "Unknown")
+  const confidence = formatValue(riskScore.confidence_tier, "Unknown")
+  const rawLiquidity = formatValue(riskScore.liquidity?.label ?? null, "Unknown")
+  const liquidity = stripRedundantWord("liquidity", rawLiquidity)
   const summaryText = riskScore.summary || riskScore.confidence_note || "No summary available."
 
-  return (
-    <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-7 backdrop-blur">
-      <h2 className="text-2xl font-bold text-white">Market summary</h2>
+  const riskAccent = chipAccent(riskScore.level)
+  const confidenceAccent = chipAccent(riskScore.confidence_tier ?? "low")
+  const liqAccent = liquidityAccent(riskScore.liquidity?.label ?? "unknown")
 
-      <div className="flex flex-wrap gap-2 text-sm text-slate-300">
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">{riskLevel} risk</span>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-          {confidenceLabel(riskScore.confidence_tier)}
-        </span>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-          {liquidityLabel(riskScore.liquidity?.label ?? null)}
-        </span>
+  const chips: Array<{ tag: string; value: string; accent: ChipAccent }> = [
+    { tag: "RISK", value: riskLevel, accent: riskAccent },
+    { tag: "CONFIDENCE", value: confidence, accent: confidenceAccent },
+    { tag: "LIQUIDITY", value: liquidity, accent: liqAccent },
+  ]
+
+  return (
+    <section className="rounded-md border border-white/8 bg-white/3">
+      <div className="border-b border-white/6 px-5 py-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Market Summary
+        </h2>
       </div>
 
-      <p
-        className="text-base leading-relaxed text-slate-300"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {summaryText}
-      </p>
+      <div className="p-5">
+        {/* Chips row */}
+        <div className="flex flex-wrap items-stretch gap-2">
+          {chips.map((chip) => {
+            const styles = ACCENT_STYLES[chip.accent]
+            return (
+              <div
+                key={chip.tag}
+                className={`flex items-baseline gap-2 border-l-[3px] ${styles.border} bg-white/4 py-1.5 pr-3.5 pl-3`}
+              >
+                <span className="font-mono text-[10px] font-medium tracking-wider text-slate-500">
+                  {chip.tag}
+                </span>
+                <span className={`text-[13px] font-semibold ${styles.text}`}>
+                  {chip.value}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Summary prose */}
+        <p className="mt-4 text-sm leading-relaxed text-slate-200">{summaryText}</p>
+      </div>
     </section>
   )
 }

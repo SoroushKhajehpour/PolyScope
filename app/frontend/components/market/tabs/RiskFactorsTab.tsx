@@ -4,69 +4,84 @@ interface RiskFactorsTabProps {
   factors: Factor[]
 }
 
-function normalizeScore(value: number): number {
+function clamp(value: number): number {
   if (!Number.isFinite(value)) return 0
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-function barColorClasses(score: number): { fill: string; glow: string; text: string } {
-  if (score >= 70) {
-    return {
-      fill: "from-rose-400 to-rose-500",
-      glow: "shadow-[0_0_16px_rgba(244,63,94,0.38)]",
-      text: "text-rose-300",
-    }
-  }
+function barColor(score: number): string {
+  if (score >= 70) return "bg-amber-500/80"
+  if (score >= 40) return "bg-slate-400/50"
+  return "bg-emerald-500/60"
+}
 
-  if (score >= 40) {
-    return {
-      fill: "from-amber-400 to-amber-500",
-      glow: "shadow-[0_0_16px_rgba(245,158,11,0.4)]",
-      text: "text-amber-300",
-    }
-  }
-
-  return {
-    fill: "from-emerald-400 to-emerald-500",
-    glow: "shadow-[0_0_16px_rgba(16,185,129,0.45)]",
-    text: "text-emerald-300",
-  }
+function scoreTextColor(score: number): string {
+  if (score >= 70) return "text-amber-400"
+  if (score >= 40) return "text-slate-400"
+  return "text-emerald-400"
 }
 
 export default function RiskFactorsTab({ factors }: RiskFactorsTabProps) {
   if (factors.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#0F1420]/75 p-6 backdrop-blur">
-        <p className="text-base text-slate-400">No risk factors available.</p>
+      <div className="rounded-md border border-white/8 bg-white/3 p-5">
+        <p className="text-sm text-slate-500">No risk factors available.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-6 backdrop-blur">
-      <h3 className="text-xl font-bold text-white">Risk factors</h3>
-      {factors.map((factor) => {
-        const normalizedScore = normalizeScore(factor.score)
-        const tone = barColorClasses(normalizedScore)
+    <div className="rounded-md border border-white/8 bg-white/3">
+      {/* Header row */}
+      <div className="grid grid-cols-[1fr_60px] items-center gap-4 border-b border-white/6 px-5 py-2.5 sm:grid-cols-[160px_1fr_60px]">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Factor
+        </span>
+        <span className="hidden text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:block">
+          Detail
+        </span>
+        <span className="text-right text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          Score
+        </span>
+      </div>
+
+      {/* Factor rows */}
+      {factors.map((factor, i) => {
+        const score = clamp(factor.score)
+        const isLast = i === factors.length - 1
 
         return (
           <div
             key={factor.label}
-            className="space-y-2 rounded-xl border border-white/10 bg-[#0B1120]/65 p-4 transition duration-300 hover:-translate-y-0.5 hover:border-white/20"
+            className={`grid grid-cols-[1fr_60px] items-start gap-4 px-5 py-3.5 sm:grid-cols-[160px_1fr_60px] ${
+              !isLast ? "border-b border-white/6" : ""
+            }`}
           >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-base font-medium text-slate-100">{factor.label}</p>
-              <p className={`text-sm font-semibold ${tone.text}`}>{normalizedScore} / 100</p>
+            {/* Label + bar */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-white">
+                {factor.label}
+              </span>
+              <div className="h-[2px] w-full bg-white/6">
+                <div
+                  className={`h-[2px] ${barColor(score)}`}
+                  style={{ width: `${score}%` }}
+                />
+              </div>
             </div>
-            <div className="h-1 rounded-full bg-white/10">
-              <div
-                className={`animate-bar-breathe h-1 rounded-full bg-linear-to-r ${tone.fill} ${tone.glow}`}
-                style={{ width: `${normalizedScore}%` }}
-              />
-            </div>
+
+            {/* Explanation */}
             {factor.explanation && (
-              <p className="text-sm text-slate-400">{factor.explanation}</p>
+              <p className="hidden pt-0.5 text-[13px] leading-relaxed text-slate-300 sm:block">
+                {factor.explanation}
+              </p>
             )}
+
+            {/* Score */}
+            <span className="text-right font-mono text-sm tabular-nums">
+              <span className={scoreTextColor(score)}>{score}</span>
+              <span className="text-slate-600">/100</span>
+            </span>
           </div>
         )
       })}

@@ -196,6 +196,13 @@ module RiskScorer
               "historical_accuracy": "<1-2 sentences about resolution reliability for this type of criteria>",
               "manipulation_risk": "<1-2 sentences about manipulation exposure given this criteria>",
               "information_asymmetry": "<1-2 sentences about information access asymmetry in this market>"
+            },
+            "factorScores": {
+              "resolution_clarity": <integer 0-100>,
+              "time_horizon": <integer 0-100>,
+              "historical_accuracy": <integer 0-100>,
+              "manipulation_risk": <integer 0-100>,
+              "information_asymmetry": <integer 0-100>
             }
           }
 
@@ -207,6 +214,9 @@ module RiskScorer
             "community decides", or names no specific source: this increases ambiguity.
           - factorExplanations: write 1–2 sentences specific to THIS market's actual criteria,
             not generic statements. Reference specific phrases from the criteria when relevant.
+          - factorScores: score each factor 0–100 where 0 = no risk and 100 = extreme risk.
+            The score MUST be consistent with your factorExplanation for the same factor.
+            Low risk → 0–39, Medium risk → 40–69, High risk → 70–100.
         PROMPT
       end
 
@@ -228,6 +238,7 @@ module RiskScorer
           market_type_confidence: type_confidence,
           market_type_reasoning: raw["market_type_reasoning"].to_s.presence,
           factorExplanations: normalize_factor_explanations(raw["factorExplanations"]),
+          factorScores: normalize_factor_scores(raw["factorScores"]),
           from_fallback: false
         }
         normalized[:ambiguityLevel] = "MODERATE" unless %w[NONE LOW MODERATE HIGH].include?(normalized[:ambiguityLevel])
@@ -242,7 +253,15 @@ module RiskScorer
           val = raw[key].to_s.strip
           h[key.to_sym] = val.present? ? val : nil
         end
-        # Return nil if all values are blank
+        result.values.any?(&:present?) ? result : nil
+      end
+
+      def normalize_factor_scores(raw)
+        return nil unless raw.is_a?(Hash)
+        result = FACTOR_EXPLANATION_KEYS.each_with_object({}) do |key, h|
+          val = raw[key].to_i
+          h[key.to_sym] = val.between?(0, 100) ? val : nil
+        end
         result.values.any?(&:present?) ? result : nil
       end
 

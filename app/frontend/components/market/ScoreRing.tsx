@@ -1,5 +1,7 @@
-interface ScoreRingProps {
+interface ScoreGaugeProps {
   score: number
+  label?: string | null
+  size?: "sm" | "md"
 }
 
 function clampScore(value: number): number {
@@ -8,37 +10,64 @@ function clampScore(value: number): number {
 }
 
 function gaugeColor(score: number): string {
-  if (score >= 70) return "#FB7185"
-  if (score >= 40) return "#F59E0B"
-  return "#10B981"
+  if (score >= 70) return "#f59e0b"
+  if (score >= 40) return "#64748b"
+  return "#10b981"
 }
 
-export default function ScoreRing({ score }: ScoreRingProps) {
-  const normalizedScore = clampScore(score)
-  const stroke = gaugeColor(normalizedScore)
+const ARC_RADIUS = 15.9
+const CIRCUMFERENCE = 2 * Math.PI * ARC_RADIUS
+
+export default function ScoreGauge({ score, label, size = "md" }: ScoreGaugeProps) {
+  const clamped = clampScore(score)
+  const color = gaugeColor(clamped)
+  const dashOffset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE
+
+  const isSm = size === "sm"
+  const boxSize = isSm ? "h-12 w-12" : "h-[72px] w-[72px]"
+  const scoreText = isSm ? "text-sm" : "text-xl"
 
   return (
-    <div className="relative h-[114px] w-[114px] shrink-0">
-      <div
-        className="absolute inset-1 rounded-full blur-xl"
-        style={{ background: `radial-gradient(circle, ${stroke}40 0%, transparent 70%)` }}
-      />
-      <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
-        <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="4.25" className="stroke-white/10" />
-        <circle
-          cx="18"
-          cy="18"
-          r="15.9"
-          fill="none"
-          strokeWidth="4.25"
-          strokeLinecap="round"
-          style={{ stroke }}
-          strokeDasharray={`${normalizedScore}, 100`}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-2xl font-black tracking-tight text-white">
-        {normalizedScore}
-      </span>
+    <div className="flex flex-col items-center gap-1.5">
+      <div className={`relative ${boxSize}`}>
+        <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+          <circle
+            cx="18"
+            cy="18"
+            r={ARC_RADIUS}
+            fill="none"
+            strokeWidth={isSm ? "2.5" : "2"}
+            className="stroke-white/6"
+          />
+          <circle
+            cx="18"
+            cy="18"
+            r={ARC_RADIUS}
+            fill="none"
+            strokeWidth={isSm ? "2.5" : "2"}
+            strokeLinecap="round"
+            style={{
+              stroke: color,
+              strokeDasharray: `${CIRCUMFERENCE}`,
+              strokeDashoffset: `${dashOffset}`,
+              transition: "stroke-dashoffset 0.6s ease",
+            }}
+          />
+        </svg>
+        <span
+          className={`absolute inset-0 flex items-center justify-center font-mono font-semibold tabular-nums tracking-tight text-white ${scoreText}`}
+        >
+          {clamped}
+        </span>
+      </div>
+      {label && !isSm && (
+        <span
+          className="text-[10px] font-semibold uppercase tracking-widest"
+          style={{ color }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   )
 }

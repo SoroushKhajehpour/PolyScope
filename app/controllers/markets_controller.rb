@@ -76,7 +76,7 @@ class MarketsController < ApplicationController
   def score_result
     market = Market.find_by(event_id: params[:event_id].to_s)
     risk_score = market&.risk_score
-    return head :no_content unless market && risk_score
+    return head :no_content unless market && risk_score && score_fresh?(market)
 
     ApiDiagnostics.record_call(service: "markets.score_result") if defined?(ApiDiagnostics)
 

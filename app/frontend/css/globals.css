@@ -3,27 +3,41 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-background: #0A0E1A;
-  --color-surface: #0F1420;
-  --color-surface-light: #141824;
+
+  --color-background: #060a14;
+  --color-surface: #0b1020;
+  --color-surface-light: #0f1528;
   --color-border: rgba(255, 255, 255, 0.08);
-  --color-text-primary: rgba(255, 255, 255, 0.90);
-  --color-text-secondary: rgba(255, 255, 255, 0.50);
-  --color-text-muted: rgba(255, 255, 255, 0.30);
-  --color-accent: #2563EB;
-  --color-accent-light: #3B82F6;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-body: #e2e8f0;
+  --color-text-muted: #64748b;
+  --color-text-dim: rgba(255, 255, 255, 0.25);
+
+  --color-accent: #06b6d4;
+  --color-accent-soft: rgba(6, 182, 212, 0.15);
+
+  --color-risk-low: rgba(16, 185, 129, 0.7);
+  --color-risk-mid: rgba(234, 179, 8, 0.7);
+  --color-risk-high: rgba(239, 68, 68, 0.7);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  html,
+  body,
+  #app {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
 
-body {
-  font-family: var(--font-sans);
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-text-body);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }

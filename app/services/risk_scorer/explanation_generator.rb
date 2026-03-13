@@ -38,7 +38,7 @@ module RiskScorer
 
       def summary_for(score, market_type, resolution_analysis = {})
         if !resolution_analysis[:from_fallback] && resolution_analysis[:overallNote].present?
-          return resolution_analysis[:overallNote] + " Market type: #{market_type}."
+          return resolution_analysis[:overallNote]
         end
 
         if score <= 39
@@ -81,11 +81,13 @@ module RiskScorer
       def explanation_for(factor_key, score, market_type, market, resolution_analysis = {})
         llm_explanation = resolution_analysis.dig(:factorExplanations, factor_key) ||
                           resolution_analysis.dig(:factorExplanations, factor_key.to_s)
-        return llm_explanation if llm_explanation.present?
 
         tier = if score >= 70 then :high elsif score >= 40 then :medium else :low end
+        fallback = FALLBACK_EXPLANATIONS.dig(factor_key, tier) || "Factor score is #{score}/100."
 
-        FALLBACK_EXPLANATIONS.dig(factor_key, tier) || "Factor score is #{score}/100."
+        return llm_explanation if llm_explanation.present?
+
+        fallback
       end
 
       FALLBACK_EXPLANATIONS = {

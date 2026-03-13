@@ -7,43 +7,84 @@ interface InsightsTabProps {
   unavailableSources: string[]
 }
 
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-md border border-white/8 bg-white/3">
+      <div className="border-b border-white/6 px-5 py-2.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {title}
+        </span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function InsightsTab({
   topDrivers,
   whyNotHigherRisk,
   liquidity,
   unavailableSources,
 }: InsightsTabProps) {
-  const cards = [...topDrivers, ...whyNotHigherRisk]
+  const drivers = topDrivers.length > 0 ? topDrivers : null
+  const mitigators = whyNotHigherRisk.length > 0 ? whyNotHigherRisk : null
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-7 backdrop-blur">
-      <h3 className="text-xl font-bold text-white">Insights</h3>
+    <div className="space-y-4">
+      {/* Drivers + Mitigators grid */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SectionCard title="Risk Drivers">
+          <ul className="divide-y divide-white/6">
+            {drivers ? (
+              drivers.map((item, i) => (
+                <li key={i} className="flex items-start gap-3 px-5 py-3">
+                  <span className="mt-[7px] block h-1.5 w-1.5 shrink-0 rounded-full bg-red-500/70" />
+                  <span className="text-sm leading-relaxed text-slate-200">{item}</span>
+                </li>
+              ))
+            ) : (
+              <li className="px-5 py-3 text-sm text-slate-600">None identified</li>
+            )}
+          </ul>
+        </SectionCard>
 
-      {cards.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {cards.map((item, index) => (
-            <div
-              key={`${item}-${index}`}
-              className="rounded-xl border border-white/10 bg-[#0A111F]/80 p-4 transition duration-300 hover:-translate-y-0.5 hover:border-white/20"
-            >
-              <p className="text-base text-slate-200">{item}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-base text-slate-400">No insight cards available.</p>
-      )}
-
-      <div className="space-y-2">
-        {liquidity?.explanation && (
-          <p className="text-base text-slate-300">{liquidity.explanation}</p>
-        )}
-        {unavailableSources.length > 0 && (
-          <p className="border-l-2 border-amber-400/50 pl-3 text-sm text-slate-400">
-            Data limitations: some sources were unavailable ({unavailableSources.join(", ")}).
-          </p>
-        )}
+        <SectionCard title="Mitigating Factors">
+          <ul className="divide-y divide-white/6">
+            {mitigators ? (
+              mitigators.map((item, i) => (
+                <li key={i} className="flex items-start gap-3 px-5 py-3">
+                  <span className="mt-[7px] block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/70" />
+                  <span className="text-sm leading-relaxed text-slate-200">{item}</span>
+                </li>
+              ))
+            ) : (
+              <li className="px-5 py-3 text-sm text-slate-600">None identified</li>
+            )}
+          </ul>
+        </SectionCard>
       </div>
+
+      {/* Liquidity + data limitations */}
+      {(liquidity?.explanation || unavailableSources.length > 0) && (
+        <div className="rounded-md border border-white/8 bg-white/3 px-5 py-4">
+          {liquidity?.explanation && (
+            <p className="text-sm leading-relaxed text-slate-200">
+              {liquidity.explanation}
+            </p>
+          )}
+          {unavailableSources.length > 0 && (
+            <p className="mt-3 border-l-[3px] border-amber-500/50 pl-3 font-mono text-[12px] text-slate-500">
+              DATA_LIMITATIONS: sources unavailable — {unavailableSources.join(", ")}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -40,32 +40,33 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
   }, [activeTab, riskScore])
 
   return (
-    <section className="space-y-5">
-      <h2 className="text-2xl font-bold text-white">Market analysis</h2>
-
-      <div className="overflow-x-auto">
-        <div className="inline-flex min-w-full gap-2 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-2 backdrop-blur">
-          {TABS.map((tab) => {
-            const isActive = tab.id === activeTab
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition duration-300 ${
-                  isActive
-                    ? "border-transparent bg-white text-slate-900 shadow-[0_6px_18px_rgba(255,255,255,0.2)]"
-                    : "border-transparent bg-transparent text-slate-400 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/5 hover:text-slate-200"
-                }`}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
+    <section className="space-y-0">
+      {/* Tab bar */}
+      <div className="flex gap-0 border-b border-white/8">
+        {TABS.map((tab) => {
+          const isActive = tab.id === activeTab
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                isActive
+                  ? "text-white"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {tab.label}
+              {isActive && (
+                <span className="absolute inset-x-0 bottom-0 h-[2px] bg-cyan-400" />
+              )}
+            </button>
+          )
+        })}
       </div>
 
-      {content}
+      {/* Tab content */}
+      <div className="pt-5">{content}</div>
     </section>
   )
 }

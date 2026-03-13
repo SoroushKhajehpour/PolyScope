@@ -37,13 +37,13 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
               <img
                 src={result.event_image}
                 alt=""
-                className="h-5 w-5 shrink-0 rounded-sm object-cover"
-                crossOrigin="anonymous"
+                className="h-8 w-8 shrink-0 rounded object-cover"
+                loading="lazy"
               />
             )}
             {!result.event_image && (
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-white/5">
-                <svg className="h-2.5 w-2.5 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-white/5">
+                <svg className="h-3.5 w-3.5 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>

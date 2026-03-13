@@ -139,8 +139,10 @@ module RiskScorer
     private
 
     def compute_breakdown(market:, market_type:, market_type_confidence:, resolution_analysis:, source_result:, similar_result:)
+      llm_scores = resolution_analysis[:factorScores] if !resolution_analysis[:from_fallback]
       clarity = resolution_clarity_components(market, market_type, market_type_confidence, resolution_analysis)
-      {
+
+      breakdown = {
         resolution_clarity: {
           score: clarity[:score],
           base: clarity[:base],
@@ -164,6 +166,18 @@ module RiskScorer
           weight: FACTOR_WEIGHTS[:information_asymmetry]
         }
       }
+
+      if llm_scores.is_a?(Hash)
+        breakdown.each_key do |factor_key|
+          llm_val = llm_scores[factor_key]
+          if llm_val.is_a?(Integer) && llm_val.between?(0, 100)
+            breakdown[factor_key][:score] = llm_val
+          end
+        end
+
+      end
+
+      breakdown
     end
 
     def weighted_score(breakdown)
