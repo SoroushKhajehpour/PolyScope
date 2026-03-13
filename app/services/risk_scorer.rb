@@ -61,10 +61,9 @@ module RiskScorer
   }.freeze
 
   LEVEL_BANDS = [
-    [0, 25, "low"],
-    [26, 50, "moderate"],
-    [51, 75, "high"],
-    [76, 100, "very_high"]
+    [0, 39, "low"],
+    [40, 69, "medium"],
+    [70, 100, "high"]
   ].freeze
 
   class << self
@@ -176,7 +175,7 @@ module RiskScorer
       LEVEL_BANDS.each do |min, max, label|
         return label if score >= min && score <= max
       end
-      "moderate"
+      "medium"
     end
 
     def resolution_clarity_components(market, market_type, market_type_confidence, resolution_analysis)
@@ -432,8 +431,8 @@ module RiskScorer
     end
 
     def normalize_level_for_record(level)
-      return "critical" if level == "very_high"
       return "medium" if level == "moderate"
+      return "high" if level == "very_high" || level == "critical"
 
       level
     end

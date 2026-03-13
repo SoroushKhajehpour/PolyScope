@@ -11,19 +11,19 @@ interface Props {
 
 export default function MarketShow({ market, risk_score }: Props) {
   return (
-    <Layout>
-      <div className="mx-auto max-w-[760px] px-4 py-8">
+    <Layout centerContent>
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 lg:py-12">
         {risk_score ? (
-          <div className="space-y-8 text-left">
+          <div className="space-y-10 lg:space-y-12">
             <MarketHero market={market} riskScore={risk_score} />
             <MarketSummaryCard riskScore={risk_score} />
             <MarketAnalysisTabs riskScore={risk_score} />
           </div>
         ) : (
-          <div className="space-y-8 text-left">
+          <div className="space-y-10 lg:space-y-12">
             <MarketHero market={market} riskScore={null} />
-            <div className="rounded-xl border border-white/10 bg-[#0F1420] p-6">
-              <p className="text-sm text-white/50">Risk score is not available for this market yet.</p>
+            <div className="rounded-2xl border border-white/10 bg-[#0F1420]/70 p-7 backdrop-blur">
+              <p className="text-sm text-slate-400">Risk score is not available for this market yet.</p>
             </div>
           </div>
         )}

@@ -30,14 +30,11 @@ function MarketMeta({ market }: { market: MarketProps }) {
         )}
       </div>
       <div>
-        <span className="inline-block rounded bg-white/5 px-2 py-0.5 text-sm font-medium uppercase tracking-wide text-white/50">
+        <span className="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300/70">
           {market.category || "Uncategorized"}
         </span>
-        <h1 className="mt-2 text-3xl font-medium leading-tight text-white">
-          {market.event_question || `Market #${market.event_id}`}
-        </h1>
       </div>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/50">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-slate-400">
         {endDateStr && <span>Ends {endDateStr}</span>}
         {endDateStr && market.volume != null && <span aria-hidden>·</span>}
         {market.volume != null && <span>{formatVolume(market.volume)} volume</span>}
@@ -52,32 +49,23 @@ export default function MarketHero({ market, riskScore }: MarketHeroProps) {
     : null
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0F1420] p-6">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        <div className="hidden h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-white/10 bg-[#1f2937] md:flex md:items-center md:justify-center">
-          {market.event_image ? (
-            <img
-              src={market.event_image}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="text-sm text-white/50">
-              No img
-            </div>
-          )}
-        </div>
-
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-linear-to-br from-[#11192B]/90 via-[#0F1628]/85 to-[#0C1220]/90 p-7 backdrop-blur-xl sm:p-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.18),transparent_45%),radial-gradient(circle_at_85%_30%,rgba(56,189,248,0.12),transparent_40%)]" />
+      <div className="relative flex flex-wrap items-center justify-center gap-7 text-center">
         <MarketMeta market={market} />
 
         {riskScore && (
-          <div className="flex shrink-0 flex-col items-center gap-2 self-start md:ml-2">
+          <div className="flex shrink-0 flex-col items-center gap-2">
             <ScoreRing score={riskScore.score} />
-            {riskHeading && <p className="text-base font-medium text-white/80">{riskHeading}</p>}
+            {riskHeading && <p className="text-base font-semibold text-slate-200">{riskHeading}</p>}
+          </div>
+        )}
+        {!riskScore && (
+          <div className="rounded-2xl border border-white/10 bg-white/3 px-5 py-4 text-sm text-slate-400">
+            Risk model pending
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }

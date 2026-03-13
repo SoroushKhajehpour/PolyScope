@@ -24,21 +24,21 @@ export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps)
   const summaryText = riskScore.summary || riskScore.confidence_note || "No summary available."
 
   return (
-    <section className="space-y-4 rounded-xl border border-white/10 bg-[#0F1420] p-6">
-      <h2 className="text-xl font-semibold text-white">Market summary</h2>
+    <section className="space-y-4 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-7 backdrop-blur">
+      <h2 className="text-2xl font-bold text-white">Market summary</h2>
 
-      <div className="flex flex-wrap gap-2 text-sm text-white/70">
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{riskLevel} risk</span>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+      <div className="flex flex-wrap gap-2 text-sm text-slate-300">
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">{riskLevel} risk</span>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
           {confidenceLabel(riskScore.confidence_tier)}
         </span>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
           {liquidityLabel(riskScore.liquidity?.label ?? null)}
         </span>
       </div>
 
       <p
-        className="text-base leading-relaxed text-white/80"
+        className="text-base leading-relaxed text-slate-300"
         style={{
           display: "-webkit-box",
           WebkitLineClamp: 3,

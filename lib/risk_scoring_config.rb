@@ -68,7 +68,7 @@ class RiskScoringConfig
       (confidence_tiers[:low_max_age_days] || 1).to_f
     end
 
-    # Level mapping: score (0-100) → level. From config level_mapping (e.g. low: [0, 25]).
+    # Level mapping: score (0-100) → level. From config level_mapping (e.g. low: [0, 39]).
     def level_mapping
       config[:level_mapping] || default_level_mapping
     end
@@ -182,10 +182,9 @@ class RiskScoringConfig
 
     def default_level_mapping
       {
-        low: [0, 25],
-        medium: [26, 50],
-        high: [51, 75],
-        critical: [76, 100]
+        low: [0, 39],
+        medium: [40, 69],
+        high: [70, 100]
       }
     end
 

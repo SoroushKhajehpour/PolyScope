@@ -55,13 +55,11 @@ class RiskScoringConfigTest < ActiveSupport::TestCase
 
   test "level_for_score returns level from config mapping" do
     assert_equal "low", RiskScoringConfig.level_for_score(0)
-    assert_equal "low", RiskScoringConfig.level_for_score(25)
-    assert_equal "medium", RiskScoringConfig.level_for_score(26)
-    assert_equal "medium", RiskScoringConfig.level_for_score(50)
-    assert_equal "high", RiskScoringConfig.level_for_score(51)
-    assert_equal "high", RiskScoringConfig.level_for_score(75)
-    assert_equal "critical", RiskScoringConfig.level_for_score(76)
-    assert_equal "critical", RiskScoringConfig.level_for_score(100)
+    assert_equal "low", RiskScoringConfig.level_for_score(39)
+    assert_equal "medium", RiskScoringConfig.level_for_score(40)
+    assert_equal "medium", RiskScoringConfig.level_for_score(69)
+    assert_equal "high", RiskScoringConfig.level_for_score(70)
+    assert_equal "high", RiskScoringConfig.level_for_score(100)
   end
 
   test "confidence_tiers returns expected keys" do

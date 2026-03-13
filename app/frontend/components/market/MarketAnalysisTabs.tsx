@@ -40,11 +40,11 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
   }, [activeTab, riskScore])
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-semibold text-white">Market analysis</h2>
+    <section className="space-y-5">
+      <h2 className="text-2xl font-bold text-white">Market analysis</h2>
 
       <div className="overflow-x-auto">
-        <div className="inline-flex min-w-full gap-2 rounded-xl border border-white/10 bg-[#0F1420] p-2">
+        <div className="inline-flex min-w-full gap-2 rounded-2xl border border-white/10 bg-[#0F1420]/75 p-2 backdrop-blur">
           {TABS.map((tab) => {
             const isActive = tab.id === activeTab
             return (
@@ -52,10 +52,10 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-lg px-4 py-2 text-sm whitespace-nowrap transition ${
+                className={`rounded-full border px-4 py-2 text-sm font-medium whitespace-nowrap transition duration-300 ${
                   isActive
-                    ? "bg-[#1D4ED8] text-white"
-                    : "bg-transparent text-white/65 hover:bg-white/5 hover:text-white/90"
+                    ? "border-transparent bg-white text-slate-900 shadow-[0_6px_18px_rgba(255,255,255,0.2)]"
+                    : "border-transparent bg-transparent text-slate-400 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/5 hover:text-slate-200"
                 }`}
               >
                 {tab.label}

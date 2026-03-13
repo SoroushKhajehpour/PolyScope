@@ -159,10 +159,9 @@ export default function HowItWorksSection() {
               </p>
               <div className="mb-4 space-y-2">
                 {[
-                  { level: "Low", range: "0-30", desc: "Market is clear, well-sourced, and likely to resolve cleanly", color: "#22C55E" },
-                  { level: "Medium", range: "31-55", desc: "Some ambiguity present — worth reviewing before trading", color: "#F59E0B" },
-                  { level: "High", range: "56-75", desc: "Meaningful risk of dispute or delayed resolution", color: "#F97316" },
-                  { level: "Critical", range: "76-100", desc: "High chance of resolution failure, dispute, or restatement", color: "#EF4444" },
+                  { level: "Low", range: "0-39", desc: "Market is clear, well-sourced, and likely to resolve cleanly", color: "#22C55E" },
+                  { level: "Medium", range: "40-69", desc: "Some ambiguity present — worth reviewing before trading", color: "#F59E0B" },
+                  { level: "High", range: "70-100", desc: "High chance of dispute, delayed resolution, or market manipulation", color: "#EF4444" },
                 ].map((tier) => (
                   <div key={tier.level} className="flex items-start gap-2">
                     <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} />

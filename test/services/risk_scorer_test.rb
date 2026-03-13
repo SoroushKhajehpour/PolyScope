@@ -9,7 +9,7 @@ class RiskScorerTest < ActiveSupport::TestCase
     assert result.key?(:score)
     assert result.key?(:level)
     assert result[:score].between?(0, 100)
-    assert %w[low moderate high very_high].include?(result[:level])
+    assert %w[low medium high].include?(result[:level])
     assert result.key?(:factors)
     assert result.key?(:liquidity_risk)
     assert result.key?(:factor_metadata)
@@ -48,7 +48,7 @@ class RiskScorerTest < ActiveSupport::TestCase
     record = RiskScore.find_by(market: market)
     assert record
     assert_equal result[:score], record.score
-    assert %w[low medium high critical].include?(record.level)
+    assert %w[low medium high].include?(record.level)
     assert record.computed_at.present?
     assert record.factor_metadata.is_a?(Hash)
   end

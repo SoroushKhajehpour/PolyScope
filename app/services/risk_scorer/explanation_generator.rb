@@ -41,31 +41,27 @@ module RiskScorer
           return resolution_analysis[:overallNote] + " Market type: #{market_type}."
         end
 
-        if score <= 25
+        if score <= 39
           "This market carries LOW risk because the outcome appears objectively verifiable with clear resolution criteria."
-        elsif score <= 50
-          "This market carries MODERATE risk because key outcomes are verifiable, but timing and context still add uncertainty."
-        elsif score <= 75
-          "This market carries HIGH risk because one or more major factors increase uncertainty and manipulation exposure."
+        elsif score <= 69
+          "This market carries MEDIUM risk because key outcomes are verifiable, but timing and context still add uncertainty."
         else
-          "This market carries VERY HIGH risk due to substantial ambiguity, uncertainty, or susceptibility to manipulation."
+          "This market carries HIGH risk because one or more major factors increase uncertainty and manipulation exposure."
         end + " Market type detected: #{market_type}."
       end
 
       def impact_for(score)
-        return "Very Low" if score <= 20
-        return "Low" if score <= 40
-        return "Moderate" if score <= 60
-        return "High" if score <= 80
+        return "Low" if score <= 39
+        return "Medium" if score <= 69
 
-        "Very High"
+        "High"
       end
 
       def top_risk_drivers(factors)
         factors
           .sort_by { |f| -f[:score] }
           .first(3)
-          .select { |f| f[:score] >= 45 }
+          .select { |f| f[:score] >= 40 }
           .map { |f| "#{f[:label]} contributes elevated risk (#{f[:score]}/100)." }
       end
 
@@ -73,7 +69,7 @@ module RiskScorer
         reasons = factors
           .sort_by { |f| f[:score] }
           .first(3)
-          .select { |f| f[:score] <= 30 }
+          .select { |f| f[:score] <= 39 }
           .map { |f| "#{f[:label]} remains relatively low (#{f[:score]}/100)." }
 
         if %w[CRYPTO_PRICE SPORTS_OUTCOME].include?(market_type)
@@ -87,7 +83,7 @@ module RiskScorer
                           resolution_analysis.dig(:factorExplanations, factor_key.to_s)
         return llm_explanation if llm_explanation.present?
 
-        tier = if score >= 70 then :high elsif score >= 40 then :moderate else :low end
+        tier = if score >= 70 then :high elsif score >= 40 then :medium else :low end
 
         FALLBACK_EXPLANATIONS.dig(factor_key, tier) || "Factor score is #{score}/100."
       end
@@ -95,27 +91,27 @@ module RiskScorer
       FALLBACK_EXPLANATIONS = {
         resolution_clarity: {
           high: "This market's resolution criteria contains language open to interpretation, increasing the risk of disputed outcomes.",
-          moderate: "The resolution criteria is mostly clear but includes some terms that could be read in more than one way.",
+          medium: "The resolution criteria is mostly clear but includes some terms that could be read in more than one way.",
           low: "Resolution criteria are well-defined and objectively verifiable, minimizing dispute risk."
         },
         time_horizon: {
           high: "This market resolves far in the future, leaving significant room for unexpected developments and shifting conditions.",
-          moderate: "The resolution timeline is medium-range, introducing some uncertainty from evolving circumstances.",
+          medium: "The resolution timeline is medium-range, introducing some uncertainty from evolving circumstances.",
           low: "This market resolves relatively soon, limiting the window for unexpected changes."
         },
         historical_accuracy: {
           high: "Similar markets have historically resolved in unpredictable or disputed ways, suggesting elevated outcome risk.",
-          moderate: "Historical data for comparable markets shows mixed reliability, warranting moderate caution.",
+          medium: "Historical data for comparable markets shows mixed reliability, warranting medium caution.",
           low: "Past markets of this type have generally resolved cleanly and as expected."
         },
         manipulation_risk: {
           high: "This market's structure and thin participation make it notably vulnerable to price manipulation or wash trading.",
-          moderate: "Some aspects of this market's structure could be exploited, though manipulation risk is not dominant.",
+          medium: "Some aspects of this market's structure could be exploited, though manipulation risk is not dominant.",
           low: "Market structure and participation levels make manipulation unlikely under normal conditions."
         },
         information_asymmetry: {
           high: "Insiders or specialists likely have material information advantages, creating significant risk for typical participants.",
-          moderate: "Some participants may have better access to relevant information, introducing a moderate edge imbalance.",
+          medium: "Some participants may have better access to relevant information, introducing a medium edge imbalance.",
           low: "Relevant information is broadly available, limiting the advantage any single participant could hold."
         }
       }.freeze
