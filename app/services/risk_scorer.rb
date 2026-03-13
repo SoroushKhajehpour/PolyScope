@@ -83,11 +83,6 @@ module RiskScorer
         similar_result: similar_result
       )
       total = weighted_score(breakdown)
-      # #region agent log
-      File.open("/Users/soroushkhajehpour/Documents/PolyScope/.cursor/debug-a41083.log", "a") do |f|
-        f.puts({sessionId:"a41083",hypothesisId:"A_C",location:"risk_scorer.rb:call",message:"score_breakdown",data:{market_id:market.respond_to?(:id) ? market.id : nil,question:market.respond_to?(:event_question) ? market.event_question.to_s[0..60] : nil,total:total,breakdown:breakdown.transform_values{|v|{score:v[:score],weight:v[:weight]}},llm_scores:resolution_analysis[:factorScores],from_fallback:resolution_analysis[:from_fallback]},timestamp:Time.now.to_f*1000}.to_json)
-      end rescue nil
-      # #endregion
       gate = apply_override_gates(total, breakdown, market)
       score = gate[:score]
       level = level_for(score)

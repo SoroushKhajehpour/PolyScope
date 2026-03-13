@@ -64,9 +64,9 @@ export default function EvaluatingCard({ market }: EvaluatingCardProps) {
       {/* Market image */}
       <div
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: 10,
+          width: 80,
+          height: 80,
+          borderRadius: 14,
           overflow: "hidden",
           marginBottom: 14,
           background: "#141824",
@@ -94,15 +94,15 @@ export default function EvaluatingCard({ market }: EvaluatingCardProps) {
       <div
         style={{
           display: "inline-block",
-          fontSize: 10,
-          fontWeight: 500,
-          letterSpacing: "0.1em",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: "rgba(255,255,255,0.35)",
+          color: "rgba(255,255,255,0.40)",
           background: "rgba(255,255,255,0.06)",
           border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 4,
-          padding: "2px 8px",
+          borderRadius: 5,
+          padding: "4px 12px",
           marginBottom: 12,
         }}
       >
