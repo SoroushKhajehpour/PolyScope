@@ -66,7 +66,7 @@ export default function Home() {
   return (
     <Layout>
       <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-6 pb-14 pt-8 lg:px-8">
-        <div className="flex min-h-[60vh] w-full flex-col items-center justify-center text-center">
+        <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-5 text-center">
           <div className="w-full max-w-3xl">
             {/* Logo and tagline */}
             <div
@@ -96,7 +96,7 @@ export default function Home() {
 
           {/* Search container */}
           <div
-            className={`relative mt-12 w-full max-w-3xl transition-all delay-100 duration-500 ${
+            className={`relative w-full max-w-3xl transition-all delay-100 duration-500 ${
               isEntering ? "translate-y-3 opacity-0" : "translate-y-0 opacity-100"
             }`}
           >
