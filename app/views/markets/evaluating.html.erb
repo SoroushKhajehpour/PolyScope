@@ -59,7 +59,7 @@
         })
         .then(function(html) {
           if (!html) return;
-          container.innerHTML = html;
+          container.outerHTML = '<div id="risk_score_result">' + html + '</div>';
           if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
         });
     }
@@ -75,5 +75,8 @@
       startPolling();
     }
     document.addEventListener("turbo:load", function() { hydrateIfScoreReady(); startPolling(); });
+    document.addEventListener("turbo:before-visit", function() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    });
   })();
 </script>

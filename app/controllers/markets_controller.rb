@@ -45,9 +45,13 @@ class MarketsController < ApplicationController
 
     if score_fresh?(@market)
       render :show
-    else
+    elsif sidekiq_available?
       enqueue_supporting_jobs(@market)
       render :evaluating
+    else
+      process_scoring_inline(@market)
+      @risk_score = @market.reload.risk_score
+      render :show
     end
   rescue Faraday::Error => e
     Rails.logger.warn("[MarketsController] show hydration failed: #{e.message}")
@@ -115,6 +119,15 @@ class MarketsController < ApplicationController
     return false if market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
     return false if market.end_date.present? && market.end_date <= 24.hours.from_now
 
+    # Re-score if previous result was a fallback and the LLM is now available
+    metadata = score.factor_metadata
+    if metadata.is_a?(Hash)
+      resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
+      if resolution.is_a?(Hash) && (resolution["from_fallback"] == true || resolution[:from_fallback] == true)
+        return false if LlmClient.new.configured?
+      end
+    end
+
     true
   end
 
@@ -128,6 +141,22 @@ class MarketsController < ApplicationController
 
   def insufficient_market_data?(market)
     market.event_question.to_s.strip.empty? || market.resolution_criteria.to_s.strip.empty?
+  end
+
+  def process_scoring_inline(market)
+    session_key = ai_session_key
+    MarketEmbeddingJob.perform_now(market.id, session_key: session_key) if market.market_embedding.blank?
+    RiskScoreCalculationJob.perform_now(market.id, session_key: session_key)
+  rescue StandardError => e
+    Rails.logger.warn("[MarketsController] inline scoring failed: #{e.class}: #{e.message}")
+  end
+
+  def sidekiq_available?
+    Sidekiq::ProcessSet.new.any? do |process|
+      process["beat"].present? && Time.at(process["beat"].to_f) > 30.seconds.ago
+    end
+  rescue StandardError
+    false
   end
 
   def ai_session_key

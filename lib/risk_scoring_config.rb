@@ -167,8 +167,8 @@ class RiskScoringConfig
         f2_source_dep: 20,
         f3_dispute_rate: 20,
         f4_time_spec: 15,
-        f5_clarifications: 10,
-        f6_similar_outcomes: 10
+        f5_liquidity: 10,
+        f6_historical_accuracy: 10
       }
     end
 

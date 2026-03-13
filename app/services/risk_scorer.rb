@@ -8,17 +8,17 @@
 #         + (information_asymmetry × 0.10)
 #
 # resolution_clarity = (type_base × type_base_weight) + (ambiguity_text_score × (1 - type_base_weight))
-#   └─ ambiguity_text_score can be overridden by OpenAI misinterpretation analysis
+#   └─ ambiguity_text_score can be overridden by LLM misinterpretation analysis
 #      (NONE -> floor 15, HIGH -> floor 75)
 #
 # Liquidity is computed but NOT included in total_score. It is returned as
 # a separate parallel signal: liquidity_risk.
 #
-# OpenAI is called in TWO places:
-#   1. Embeddings — SimilarOutcomesScorer / MarketEmbeddingJob
-#   2. Misinterpretation analysis — ResolutionMisinterpretationAnalyzer
+# External API calls:
+#   1. Anthropic (via LlmClient) — ResolutionMisinterpretationAnalyzer, SourceDependencyScorer
+#   2. OpenAI — Embeddings only (SimilarOutcomesScorer / MarketEmbeddingJob)
 #
-# Both calls are cache-first (24h), explicit-select trigger only, dedup locked,
+# All calls are cache-first (24h), explicit-select trigger only, dedup locked,
 # budget-limited, and fallback-safe.
 #
 # Market type source:
@@ -29,6 +29,11 @@
 #   - known manipulated source + manipulation_risk >= threshold -> floor score
 #   - missing resolution_criteria -> floor score
 module RiskScorer
+  AMBIGUITY_REGEX_SCALE = 4
+  DISPUTE_RATE_MULTIPLIER = 5.0
+  SIMILAR_OUTCOMES_MULTIPLIER = 10.0
+  THIN_MARKET_VOLUME_THRESHOLD = 50_000
+
   FACTOR_WEIGHTS = {
     resolution_clarity: 0.38,
     time_horizon: 0.17,
@@ -37,15 +42,13 @@ module RiskScorer
     information_asymmetry: 0.10
   }.freeze
 
-  # Single source of truth until schema migration to descriptive columns.
-  # TODO: migrate risk_scores legacy factor columns to descriptive names.
   FACTOR_NAME_MAP = {
     resolution_clarity: :f1_ambiguity,
     information_asymmetry: :f2_source_dep,
     manipulation_risk: :f3_dispute_rate,
     time_horizon: :f4_time_spec,
-    liquidity: :f5_clarifications,
-    historical_accuracy: :f6_similar_outcomes
+    liquidity: :f5_liquidity,
+    historical_accuracy: :f6_historical_accuracy
   }.freeze
 
   HISTORICAL_ACCURACY_TYPE_BASE = {
@@ -158,7 +161,7 @@ module RiskScorer
           weight: FACTOR_WEIGHTS[:manipulation_risk]
         },
         information_asymmetry: {
-          score: information_asymmetry_score(market, market_type),
+          score: information_asymmetry_score(market, market_type, source_result),
           weight: FACTOR_WEIGHTS[:information_asymmetry]
         }
       }
@@ -191,7 +194,14 @@ module RiskScorer
       else 85
       end
 
-      ambiguity_text_score = (RiskScorer::AmbiguityRegexScorer.call(text) * 4).to_f.clamp(0, 100)
+      dimensions = resolution_analysis[:dimensions]
+      ambiguity_text_score = if dimensions.present?
+        dimension_total = dimensions.values.sum.to_f
+        (dimension_total * AMBIGUITY_REGEX_SCALE).clamp(0, 100)
+      else
+        (RiskScorer::AmbiguityRegexScorer.call(text) * AMBIGUITY_REGEX_SCALE).to_f.clamp(0, 100)
+      end
+
       ambiguity_override = case resolution_analysis[:ambiguityLevel].to_s.upcase
       when "HIGH" then [ambiguity_text_score, 75].max
       when "NONE" then [ambiguity_text_score, 15].min
@@ -243,10 +253,11 @@ module RiskScorer
     def historical_accuracy_score(market, market_type, similar_result)
       type_base = HISTORICAL_ACCURACY_TYPE_BASE.fetch(market_type.to_s, 65)
 
-      dispute_component = RiskScorer::DisputeRateScorer.call(market).to_f * 5.0
-      similar_component = similar_result[:score].to_f * 10.0
+      dispute_component = RiskScorer::DisputeRateScorer.call(market).to_f * DISPUTE_RATE_MULTIPLIER
+      similar_component = similar_result[:score].to_f * SIMILAR_OUTCOMES_MULTIPLIER
       ((type_base * 0.6) + (dispute_component * 0.25) + (similar_component * 0.15)).round.clamp(0, 100)
-    rescue StandardError
+    rescue StandardError => e
+      Rails.logger.error("[RiskScorer] historical_accuracy_score failed: #{e.class}: #{e.message}")
       type_base
     end
 
@@ -261,15 +272,16 @@ module RiskScorer
       end
 
       vol = market.respond_to?(:volume) ? market.volume.to_f : 0.0
-      base += 15 if vol > 0 && vol < 50_000
+      base += 15 if vol > 0 && vol < THIN_MARKET_VOLUME_THRESHOLD
 
       base += 10 if source_result[:apply_source_floor]
       base.clamp(0, 100)
-    rescue StandardError
+    rescue StandardError => e
+      Rails.logger.error("[RiskScorer] manipulation_risk_score failed: #{e.class}: #{e.message}")
       base.clamp(0, 100)
     end
 
-    def information_asymmetry_score(market, market_type)
+    def information_asymmetry_score(market, market_type, source_result)
       base = case market_type
       when "CRYPTO_PRICE" then 20
       when "SPORTS_OUTCOME" then 25
@@ -279,9 +291,12 @@ module RiskScorer
       else 65
       end
 
+      source_signal = (source_result[:score].to_f / 20.0) * 40
+
       text = market.respond_to?(:resolution_criteria) ? market.resolution_criteria.to_s : ""
-      base += 15 if text.match?(/\binsider|private source|unpublished|anonymous source\b/i)
-      base.clamp(0, 100)
+      insider_penalty = text.match?(/\binsider|private source|unpublished|anonymous source\b/i) ? 15 : 0
+
+      ((base * 0.40) + (source_signal * 0.45) + insider_penalty).round.clamp(0, 100)
     end
 
     def confidence_tier_for(score, data_availability)

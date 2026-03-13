@@ -7,7 +7,7 @@ class LlmClient
   DEFAULT_MAX_TOKENS = 1024
 
   def initialize(api_key: nil)
-    @api_key = api_key.presence || ENV["ANTHROPIC_API_KEY"]
+    @api_key = (api_key.presence || ENV["ANTHROPIC_API_KEY"]).to_s.strip.presence
   end
 
   def configured?

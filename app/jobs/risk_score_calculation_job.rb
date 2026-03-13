@@ -1,12 +1,10 @@
 # frozen_string_literal: true
+
 require "sidekiq/api"
 
-# Orchestrates risk scoring: targeted run by market_id(s) or batch of markets needing scoring.
-# For each market: RiskScorer.call(market); errors logged and skipped.
+# Orchestrates risk scoring for a single market (explicit user selection only).
 class RiskScoreCalculationJob < ApplicationJob
   queue_as :default
-
-  BATCH_SIZE = 100
 
   class << self
     # Enqueue only if no pending/running default-queue job exists for this market id.
@@ -34,8 +32,7 @@ class RiskScoreCalculationJob < ApplicationJob
     end
   end
 
-  # @param market_id [Integer, nil] Score one market (explicit user selection only)
-  def perform(market_id = nil, session_key: nil, market_ids: nil)
+  def perform(market_id, session_key: nil)
     return unless market_id.present?
 
     process_market(Market.find_by(id: market_id), session_key: session_key)
@@ -47,8 +44,6 @@ class RiskScoreCalculationJob < ApplicationJob
     return if market.blank?
     return if market.resolution_criteria.to_s.strip.empty?
 
-    # ✅ LLM/EMBEDDINGS CALL TRIGGER — only reachable from explicit user market selection
-    # Do not move or duplicate this call elsewhere.
     RiskScorer.call(market, persist: true, session_key: session_key)
     risk_score = market.reload.risk_score
     return unless risk_score
@@ -61,8 +56,5 @@ class RiskScoreCalculationJob < ApplicationJob
     )
   rescue StandardError => e
     Rails.logger.warn("[RiskScoreCalculationJob] market_id=#{market.id} #{e.class}: #{e.message}")
-    # Skip; do not retry the whole batch
   end
-
-  # Legacy batch scorer intentionally disabled to keep AI calls user-triggered only.
 end

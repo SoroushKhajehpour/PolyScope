@@ -33,6 +33,7 @@ module RiskScorer
 
         vec = me.embedding_vector
         similar = MarketEmbedding.nearest_same_category(vec, exclude_market_id: market.id, category: market.category, limit: K_NEAREST, max_distance: 1.0 - MIN_SIMILARITY)
+                                  .includes(market: [:disputes, :clarifications])
 
         similar_market_ids = []
         similar_scores = {}

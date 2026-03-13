@@ -6,6 +6,7 @@ module RiskScorer
   module AiCallGovernor
     SESSION_MAX_CALLS = 20
     SESSION_MAX_CALLS_PER_MINUTE = 3
+    MAX_WAIT_SECONDS = 30
 
     @monitor = Monitor.new
     @pending = {}
@@ -64,14 +65,21 @@ module RiskScorer
         total = Rails.cache.read(total_key).to_i
         return { allowed: false, reason: "AI scoring limit reached for this session. Using estimated scores." } if total >= SESSION_MAX_CALLS
 
+        waited = 0
         until Rails.cache.read(minute_key).to_i < SESSION_MAX_CALLS_PER_MINUTE
+          waited += 1
+          if waited > MAX_WAIT_SECONDS
+            return { allowed: false, reason: "Rate limit wait exceeded. Using estimated scores." }
+          end
           sleep 1
           minute = Time.current.to_i / 60
           minute_key = "ai_budget:#{provider}:#{skey}:minute:#{minute}"
         end
 
-        Rails.cache.write(total_key, total + 1, expires_in: 24.hours)
-        Rails.cache.write(minute_key, Rails.cache.read(minute_key).to_i + 1, expires_in: 70.seconds)
+        Rails.cache.write(total_key, 0, expires_in: 24.hours) unless Rails.cache.read(total_key)
+        Rails.cache.increment(total_key)
+        Rails.cache.write(minute_key, 0, expires_in: 70.seconds) unless Rails.cache.read(minute_key)
+        Rails.cache.increment(minute_key)
 
         { allowed: true, reason: nil }
       end

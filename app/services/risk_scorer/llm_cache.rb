@@ -14,7 +14,7 @@ module RiskScorer
 
         record = LlmScoreCache.find_by(cache_key: cache_key)
         return nil unless record
-        return nil if record.expires_at < Time.current
+        return nil if record.expires_at.nil? || record.expires_at < Time.current
 
         record.result_json.is_a?(Hash) ? record.result_json : {}
       end

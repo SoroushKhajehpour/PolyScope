@@ -10,6 +10,7 @@ class PolymarketSyncJob < ApplicationJob
     offset = 0
     page = 0
     seen_event_ids = Set.new
+    batch = []
 
     loop do
       break if page >= MAX_PAGES
@@ -24,9 +25,8 @@ class PolymarketSyncJob < ApplicationJob
         next if seen_event_ids.include?(attrs[:event_id])
         seen_event_ids.add(attrs[:event_id])
 
-        market = Market.find_or_initialize_by(event_id: attrs[:event_id])
-        market.assign_attributes(attrs)
-        market.save!
+        now = Time.current
+        batch << attrs.merge(created_at: now, updated_at: now)
       end
 
       break if data.size < PAGE_LIMIT
@@ -34,6 +34,14 @@ class PolymarketSyncJob < ApplicationJob
       offset += PAGE_LIMIT
       page += 1
     end
+
+    return if batch.empty?
+
+    Market.upsert_all(
+      batch,
+      unique_by: :event_id,
+      update_only: %i[polymarket_id event_question event_image resolution_criteria category end_date status volume condition_id updated_at]
+    )
   rescue Faraday::Error => e
     Rails.logger.error("[PolymarketSyncJob] #{e.message}")
     raise

@@ -8,8 +8,8 @@ default: &default
     f2_source_dep: 20
     f3_dispute_rate: 20
     f4_time_spec: 15
-    f5_clarifications: 10
-    f6_similar_outcomes: 10
+    f5_liquidity: 10
+    f6_historical_accuracy: 10
 
   # Known-manipulated sources: if cited, apply source_floor override
   known_manipulated_sources:
@@ -127,8 +127,6 @@ default: &default
     "World": GEOPOLITICAL
     "General": MACRO_ECONOMIC
     "Sci": MACRO_ECONOMIC
-    "MyString": MACRO_ECONOMIC
-
     default: SUBJECTIVE_QUALITATIVE
 
 development:

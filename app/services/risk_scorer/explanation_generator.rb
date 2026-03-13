@@ -19,12 +19,12 @@ module RiskScorer
             maxScore: 100,
             weight: "#{(values[:weight] * 100).round}%",
             impact: impact_for(values[:score]),
-            explanation: explanation_for(factor_key, values[:score], market_type, market)
+            explanation: explanation_for(factor_key, values[:score], market_type, market, resolution_analysis)
           }
         end
 
         {
-          summary: summary_for(score, market_type),
+          summary: summary_for(score, market_type, resolution_analysis),
           factors: factors,
           topRiskDrivers: top_risk_drivers(factors),
           whyNotHigherRisk: why_not_higher_risk(factors, market_type),
@@ -36,7 +36,11 @@ module RiskScorer
 
       private
 
-      def summary_for(score, market_type)
+      def summary_for(score, market_type, resolution_analysis = {})
+        if !resolution_analysis[:from_fallback] && resolution_analysis[:overallNote].present?
+          return resolution_analysis[:overallNote] + " Market type: #{market_type}."
+        end
+
         if score <= 25
           "This market carries LOW risk because the outcome appears objectively verifiable with clear resolution criteria."
         elsif score <= 50
@@ -78,22 +82,43 @@ module RiskScorer
         reasons.uniq
       end
 
-      def explanation_for(factor_key, score, market_type, market)
-        case factor_key
-        when :resolution_clarity
-          "Resolution criteria clarity is scored at #{score}/100 for market type #{market_type}."
-        when :time_horizon
-          "Longer time to resolution increases uncertainty; this market scores #{score}/100."
-        when :historical_accuracy
-          "Historical resolution reliability for similar markets maps to #{score}/100."
-        when :manipulation_risk
-          "Market structure and source profile imply manipulation risk of #{score}/100."
-        when :information_asymmetry
-          "Potential insider or uneven information access is estimated at #{score}/100."
-        else
-          "Factor score is #{score}/100."
-        end
+      def explanation_for(factor_key, score, market_type, market, resolution_analysis = {})
+        llm_explanation = resolution_analysis.dig(:factorExplanations, factor_key) ||
+                          resolution_analysis.dig(:factorExplanations, factor_key.to_s)
+        return llm_explanation if llm_explanation.present?
+
+        tier = if score >= 70 then :high elsif score >= 40 then :moderate else :low end
+
+        FALLBACK_EXPLANATIONS.dig(factor_key, tier) || "Factor score is #{score}/100."
       end
+
+      FALLBACK_EXPLANATIONS = {
+        resolution_clarity: {
+          high: "This market's resolution criteria contains language open to interpretation, increasing the risk of disputed outcomes.",
+          moderate: "The resolution criteria is mostly clear but includes some terms that could be read in more than one way.",
+          low: "Resolution criteria are well-defined and objectively verifiable, minimizing dispute risk."
+        },
+        time_horizon: {
+          high: "This market resolves far in the future, leaving significant room for unexpected developments and shifting conditions.",
+          moderate: "The resolution timeline is medium-range, introducing some uncertainty from evolving circumstances.",
+          low: "This market resolves relatively soon, limiting the window for unexpected changes."
+        },
+        historical_accuracy: {
+          high: "Similar markets have historically resolved in unpredictable or disputed ways, suggesting elevated outcome risk.",
+          moderate: "Historical data for comparable markets shows mixed reliability, warranting moderate caution.",
+          low: "Past markets of this type have generally resolved cleanly and as expected."
+        },
+        manipulation_risk: {
+          high: "This market's structure and thin participation make it notably vulnerable to price manipulation or wash trading.",
+          moderate: "Some aspects of this market's structure could be exploited, though manipulation risk is not dominant.",
+          low: "Market structure and participation levels make manipulation unlikely under normal conditions."
+        },
+        information_asymmetry: {
+          high: "Insiders or specialists likely have material information advantages, creating significant risk for typical participants.",
+          moderate: "Some participants may have better access to relevant information, introducing a moderate edge imbalance.",
+          low: "Relevant information is broadly available, limiting the advantage any single participant could hold."
+        }
+      }.freeze
 
       def liquidity_note_for(score)
         numeric = score.to_i.clamp(0, 100)
@@ -123,7 +148,8 @@ module RiskScorer
           ambiguityLevel: analysis[:ambiguityLevel].to_s.upcase,
           misinterpretations: Array(analysis[:misinterpretations]),
           overallNote: analysis[:overallNote].to_s,
-          sourceLabel: analysis[:from_fallback] ? "Estimated (AI unavailable)" : "Analysis by OpenAI · cached 24h"
+          dimensions: analysis[:dimensions],
+          sourceLabel: analysis[:from_fallback] ? "Estimated (AI unavailable)" : "Analysis by Anthropic · cached 24h"
         }
       end
     end

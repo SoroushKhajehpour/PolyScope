@@ -14,8 +14,8 @@ class RiskScoringConfigTest < ActiveSupport::TestCase
     assert_equal 20, weights[:f2_source_dep]
     assert_equal 20, weights[:f3_dispute_rate]
     assert_equal 15, weights[:f4_time_spec]
-    assert_equal 10, weights[:f5_clarifications]
-    assert_equal 10, weights[:f6_similar_outcomes]
+    assert_equal 10, weights[:f5_liquidity]
+    assert_equal 10, weights[:f6_historical_accuracy]
     assert_equal 100, weights.values.sum
   end
 

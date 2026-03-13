@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_11_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_12_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -96,7 +96,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_11_120000) do
     t.string "event_image"
     t.string "condition_id"
     t.index ["condition_id"], name: "index_markets_on_condition_id"
-    t.index ["event_id"], name: "index_markets_on_event_id"
+    t.index ["event_id"], name: "index_markets_on_event_id", unique: true
   end
 
   create_table "risk_scores", force: :cascade do |t|
@@ -112,8 +112,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_11_120000) do
     t.integer "f2_source_dep"
     t.integer "f3_dispute_rate"
     t.integer "f4_time_spec"
-    t.integer "f5_clarifications"
-    t.integer "f6_similar_outcomes"
+    t.integer "f5_liquidity"
+    t.integer "f6_historical_accuracy"
     t.string "factors_imputed", default: [], array: true
     t.string "override_gate_applied"
     t.jsonb "factor_metadata", default: {}

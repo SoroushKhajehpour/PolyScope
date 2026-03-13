@@ -3,10 +3,10 @@
 module RiskScorer
   module DatePatterns
     # Matches any recognizable date or precise temporal reference.
-    SPECIFIC_DATE_PATTERN = /
+    SPECIFIC_DATE_PATTERN = %r{
       # ISO and numeric formats
       \d{4}-\d{2}-\d{2}                                        |  # 2026-12-31
-      \d{1,2}\/\d{1,2}\/\d{2,4}                                |  # 12/31/2026 or 31/12/2026
+      \d{1,2}/\d{1,2}/\d{2,4}                                  |  # 12/31/2026 or 31/12/2026
       \d{1,2}-\d{1,2}-\d{4}                                    |  # 31-12-2026
 
       # Written month name + day + year
@@ -40,7 +40,7 @@ module RiskScorer
 
       # Time with timezone (signals precise deadline nearby)
       \d{1,2}:\d{2}\s*(?:AM|PM|am|pm)\s*(?:ET|PT|CT|MT|UTC|GMT|EST|PST|CST|MST)
-    /ix.freeze
+    }ix.freeze
 
     DATE_PATTERN = SPECIFIC_DATE_PATTERN
   end

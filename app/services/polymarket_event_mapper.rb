@@ -18,6 +18,7 @@ class PolymarketEventMapper
         first = markets.first
         event = first.dig("events", 0)
         total_volume = markets.sum { |m| parse_volume(m["volumeNum"] || m["volume"]) || 0 }
+        latest_end = markets.filter_map { |m| parse_time(m["endDate"] || m["endDateIso"]) }.max
 
         {
           event_id: event_id,
@@ -26,9 +27,9 @@ class PolymarketEventMapper
           event_image: image_url_from(first, event),
           volume: total_volume.positive? ? total_volume : nil,
           category: category_for_event(markets, event),
-          end_date: parse_time(first["endDate"] || first["endDateIso"]),
+          end_date: latest_end || parse_time(first["endDate"] || first["endDateIso"]),
           status: markets.any? { |m| !closed?(m) } ? "active" : "closed",
-          resolution_criteria: first["resolutionSource"].to_s.presence || first["description"].to_s.presence,
+          resolution_criteria: composite_resolution_criteria(markets, event),
           condition_id: first["conditionId"].to_s.presence
         }.compact
       end
@@ -48,10 +49,11 @@ class PolymarketEventMapper
         volume = event_hash["markets"].sum { |m| parse_volume(m["volume"] || m["volumeNum"]) || 0 }
       end
 
-      first_market = event_hash["markets"]&.first
-      category = category_for_event(event_hash["markets"].to_a, event_hash)
-      end_date = parse_time(first_market&.dig("endDate") || first_market&.dig("endDateIso") || event_hash["endDate"])
-      resolution_criteria = first_market&.dig("resolutionSource").to_s.presence || first_market&.dig("description").to_s.presence || event_hash["description"].to_s.presence
+      child_markets = event_hash["markets"].to_a
+      first_market = child_markets.first
+      category = category_for_event(child_markets, event_hash)
+      latest_end = child_markets.filter_map { |m| parse_time(m["endDate"] || m["endDateIso"]) }.max
+      end_date = latest_end || parse_time(first_market&.dig("endDate") || first_market&.dig("endDateIso") || event_hash["endDate"])
 
       {
         event_id: event_id,
@@ -62,12 +64,51 @@ class PolymarketEventMapper
         category: category,
         end_date: end_date,
         status: closed?(event_hash) ? "closed" : "active",
-        resolution_criteria: resolution_criteria,
+        resolution_criteria: composite_resolution_criteria(child_markets, event_hash),
         condition_id: first_market&.dig("conditionId").to_s.presence
       }.compact
     end
 
     private
+
+    # Build resolution criteria from child markets.
+    # Single market: use its description directly.
+    # Multiple markets: combine event description with labeled submarket criteria
+    # so the LLM and user see the full picture, not a random child's criteria.
+    MAX_SUBMARKETS_IN_CRITERIA = 4
+
+    def composite_resolution_criteria(markets_array, event_hash)
+      markets = markets_array.to_a
+      event_desc = event_hash&.dig("description").to_s.strip.presence
+
+      if markets.length <= 1
+        m = markets.first
+        return m&.dig("resolutionSource").to_s.presence ||
+               m&.dig("description").to_s.presence ||
+               event_desc
+      end
+
+      # Multi-market event: build composite
+      parts = []
+      parts << event_desc if event_desc.present?
+
+      # Sort by description length descending so most detailed come first
+      ranked = markets.sort_by { |m| -(m["description"].to_s.length) }
+      shown = ranked.first(MAX_SUBMARKETS_IN_CRITERIA)
+      remaining = markets.length - shown.length
+
+      shown.each do |m|
+        question = m["question"].to_s.presence || "Submarket"
+        desc = m["resolutionSource"].to_s.presence || m["description"].to_s.presence
+        next unless desc.present?
+        parts << "[#{question}]\n#{desc}"
+      end
+
+      parts << "(+#{remaining} additional submarket#{"s" if remaining != 1} not shown)" if remaining > 0
+
+      result = parts.join("\n\n")
+      result.present? ? result : nil
+    end
 
     def closed?(hash)
       v = hash["closed"]
