@@ -148,7 +148,6 @@ module RiskScorer
           ambiguityLevel: analysis[:ambiguityLevel].to_s.upcase,
           misinterpretations: Array(analysis[:misinterpretations]),
           overallNote: analysis[:overallNote].to_s,
-          dimensions: analysis[:dimensions],
           sourceLabel: analysis[:from_fallback] ? "Estimated (AI unavailable)" : "Analysis by Anthropic · cached 24h"
         }
       end

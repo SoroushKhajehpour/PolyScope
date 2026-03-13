@@ -118,27 +118,26 @@ export default function HowItWorksSection() {
 
         <HowItWorksCard
           stepNumber="02"
-          title="We score 6 risk factors"
+          title="We score 5 risk factors"
           description="Our engine analyses what could go wrong before the market resolves"
           animationDelay={1000}
           modal={
             <div>
               <div className="mb-[10px] text-base font-semibold tracking-[-0.01em] text-white/92">What we actually analyse</div>
               <p className="mb-3 text-sm leading-[1.65] text-white/55">
-                Every market is scored across six independent risk dimensions:
+                Every market is scored across five core risk factors:
               </p>
               <div className="space-y-0">
                 {[
-                  { code: "F1", name: "Ambiguity", desc: "Is the resolution question clearly written?" },
-                  { code: "F2", name: "Source risk", desc: "Does it rely on a single or unreliable data source?" },
-                  { code: "F3", name: "Timing risk", desc: "Could timing ambiguity affect when or if it resolves?" },
-                  { code: "F4", name: "Subjectivity", desc: "Is the outcome open to interpretation?" },
-                  { code: "F5", name: "Precedent", desc: "Has this type of market resolved cleanly before?" },
-                  { code: "F6", name: "Similar outcomes", desc: "How have comparable markets historically resolved?" },
+                  { code: "F1", name: "Resolution clarity", desc: "How precise and verifiable the resolution criteria are." },
+                  { code: "F2", name: "Time horizon", desc: "How much timing uncertainty exists before settlement." },
+                  { code: "F3", name: "Historical accuracy", desc: "How reliably similar markets have resolved in the past." },
+                  { code: "F4", name: "Manipulation risk", desc: "How exposed the market is to manipulation or adverse structure." },
+                  { code: "F5", name: "Information asymmetry", desc: "How unevenly market-moving information is distributed." },
                 ].map((factor, i) => (
-                  <div key={factor.code} className={`flex items-baseline gap-3 py-2 ${i < 5 ? "border-b border-white/5" : ""}`}>
+                  <div key={factor.code} className={`flex items-baseline gap-3 py-2 ${i < 4 ? "border-b border-white/5" : ""}`}>
                     <span className="shrink-0 text-xs font-medium text-white/35">{factor.code}</span>
-                    <span className="w-24 shrink-0 text-xs font-medium text-white/35">{factor.name}</span>
+                    <span className="w-32 shrink-0 text-xs font-medium text-white/35">{factor.name}</span>
                     <span className="text-xs text-white/55">{factor.desc}</span>
                   </div>
                 ))}
@@ -150,7 +149,7 @@ export default function HowItWorksSection() {
         <HowItWorksCard
           stepNumber="03"
           title="Understand your risk"
-          description="Get a clear score, a plain-English verdict, and a full factor breakdown"
+          description="Get a clear score, plain-English verdict, and tabbed analysis"
           animationDelay={1150}
           modal={
             <div>

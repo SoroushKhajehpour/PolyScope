@@ -194,13 +194,7 @@ module RiskScorer
       else 85
       end
 
-      dimensions = resolution_analysis[:dimensions]
-      ambiguity_text_score = if dimensions.present?
-        dimension_total = dimensions.values.sum.to_f
-        (dimension_total * AMBIGUITY_REGEX_SCALE).clamp(0, 100)
-      else
-        (RiskScorer::AmbiguityRegexScorer.call(text) * AMBIGUITY_REGEX_SCALE).to_f.clamp(0, 100)
-      end
+      ambiguity_text_score = (RiskScorer::AmbiguityRegexScorer.call(text) * AMBIGUITY_REGEX_SCALE).to_f.clamp(0, 100)
 
       ambiguity_override = case resolution_analysis[:ambiguityLevel].to_s.upcase
       when "HIGH" then [ambiguity_text_score, 75].max

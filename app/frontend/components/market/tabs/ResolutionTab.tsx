@@ -70,9 +70,7 @@ export default function ResolutionTab({ criteria }: ResolutionTabProps) {
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-white/50">Timeline rules</p>
           <p className="text-base text-white/75">
-            {typeof criteria?.dimensions?.temporal_precision === "number"
-              ? `Timeline precision score: ${criteria.dimensions.temporal_precision} / 5`
-              : "Timeline constraints are described in the resolution criteria text."}
+            Timeline constraints are described in the resolution criteria text.
           </p>
         </div>
       </div>

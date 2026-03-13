@@ -124,7 +124,6 @@ module RiskScorer
           market_type: nil,
           market_type_confidence: nil,
           market_type_reasoning: nil,
-          dimensions: nil,
           factorExplanations: nil,
           from_fallback: true
         }
@@ -145,7 +144,6 @@ module RiskScorer
           market_type: nil,
           market_type_confidence: nil,
           market_type_reasoning: nil,
-          dimensions: nil,
           factorExplanations: nil,
           from_fallback: true
         }
@@ -192,13 +190,6 @@ module RiskScorer
               }
             ],
             "overallNote": "<one sentence summary>",
-            "dimensions": {
-              "temporal_precision": <0-5>,
-              "source_clarity": <0-5>,
-              "threshold_precision": <0-5>,
-              "linguistic_precision": <0-5>,
-              "completeness": <0-5>
-            },
             "factorExplanations": {
               "resolution_clarity": "<1-2 sentences about this specific market's criteria clarity>",
               "time_horizon": "<1-2 sentences about this market's deadline specificity>",
@@ -214,8 +205,6 @@ module RiskScorer
             on-chain source: this strongly indicates objective resolution text.
           - If criteria uses words like "generally", "consensus", "widely",
             "community decides", or names no specific source: this increases ambiguity.
-          - dimensions: each value is 0–5 where 0 = precise/low-risk, 5 = vague/high-risk.
-            Score based on what is actually written in the resolution criteria.
           - factorExplanations: write 1–2 sentences specific to THIS market's actual criteria,
             not generic statements. Reference specific phrases from the criteria when relevant.
         PROMPT
@@ -238,7 +227,6 @@ module RiskScorer
           market_type: type,
           market_type_confidence: type_confidence,
           market_type_reasoning: raw["market_type_reasoning"].to_s.presence,
-          dimensions: normalize_dimensions(raw["dimensions"]),
           factorExplanations: normalize_factor_explanations(raw["factorExplanations"]),
           from_fallback: false
         }
@@ -246,19 +234,7 @@ module RiskScorer
         normalized
       end
 
-      DIMENSION_KEYS = %w[temporal_precision source_clarity threshold_precision linguistic_precision completeness].freeze
       FACTOR_EXPLANATION_KEYS = %w[resolution_clarity time_horizon historical_accuracy manipulation_risk information_asymmetry].freeze
-
-      def normalize_dimensions(raw)
-        return nil unless raw.is_a?(Hash)
-        result = DIMENSION_KEYS.each_with_object({}) do |key, h|
-          val = raw[key].to_i
-          h[key.to_sym] = val.clamp(0, 5)
-        end
-        # Default any missing keys to 3
-        DIMENSION_KEYS.each { |k| result[k.to_sym] ||= 3 }
-        result
-      end
 
       def normalize_factor_explanations(raw)
         return nil unless raw.is_a?(Hash)

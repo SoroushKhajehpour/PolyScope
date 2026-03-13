@@ -28,7 +28,6 @@ export interface ResolutionCriteria {
   criteriaText: string | null
   hasAmbiguity: boolean
   ambiguityLevel: string | null
-  dimensions: Record<string, number> | null
   misinterpretations: Array<{
     issue: string
     description: string

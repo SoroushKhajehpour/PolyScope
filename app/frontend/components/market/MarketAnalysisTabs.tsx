@@ -2,19 +2,17 @@ import { useMemo, useState } from "react"
 import type { RiskScoreProps } from "@/types/market"
 import ResolutionTab from "./tabs/ResolutionTab"
 import RiskFactorsTab from "./tabs/RiskFactorsTab"
-import FactorBreakdownTab from "./tabs/FactorBreakdownTab"
 import InsightsTab from "./tabs/InsightsTab"
 
 interface MarketAnalysisTabsProps {
   riskScore: RiskScoreProps
 }
 
-type TabId = "resolution" | "risk_factors" | "factor_breakdown" | "insights"
+type TabId = "resolution" | "risk_factors" | "insights"
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "resolution", label: "Resolution" },
   { id: "risk_factors", label: "Risk Factors" },
-  { id: "factor_breakdown", label: "Factor Breakdown" },
   { id: "insights", label: "Insights" },
 ]
 
@@ -27,8 +25,6 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
         return <ResolutionTab criteria={riskScore.resolution_criteria} />
       case "risk_factors":
         return <RiskFactorsTab factors={riskScore.factors} />
-      case "factor_breakdown":
-        return <FactorBreakdownTab criteria={riskScore.resolution_criteria} />
       case "insights":
         return (
           <InsightsTab

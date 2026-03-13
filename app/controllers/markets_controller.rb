@@ -261,7 +261,6 @@ class MarketsController < ApplicationController
         criteriaText: res_card["criteriaText"],
         hasAmbiguity: res_card["hasAmbiguity"] == true,
         ambiguityLevel: res_card["ambiguityLevel"],
-        dimensions: res_card["dimensions"].is_a?(Hash) ? res_card["dimensions"] : nil,
         misinterpretations: res_card["misinterpretations"].is_a?(Array) ? res_card["misinterpretations"] : nil,
         overallNote: res_card["overallNote"],
         sourceLabel: res_card["sourceLabel"]
