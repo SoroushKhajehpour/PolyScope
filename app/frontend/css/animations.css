@@ -1,0 +1,105 @@
+/* ── Border glow (conic gradient rotation) ────────────────────────── */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes border-rotate {
+  from { --border-angle: 0deg; }
+  to { --border-angle: 360deg; }
+}
+
+.animate-border-glow {
+  animation: border-rotate 6s linear infinite;
+}
+
+/* ── Wandering glow orbs ──────────────────────────────────────────── */
+@keyframes glow-wander-1 {
+  0%, 100% { transform: translate(-30%, -20%); }
+  25% { transform: translate(30%, -10%); }
+  50% { transform: translate(20%, 30%); }
+  75% { transform: translate(-25%, 15%); }
+}
+
+@keyframes glow-wander-2 {
+  0%, 100% { transform: translate(25%, 20%); }
+  33% { transform: translate(-30%, 5%); }
+  66% { transform: translate(10%, -25%); }
+}
+
+@keyframes glow-wander-3 {
+  0%, 100% { transform: translate(0%, -30%); }
+  20% { transform: translate(35%, 10%); }
+  40% { transform: translate(-15%, 25%); }
+  60% { transform: translate(-35%, -5%); }
+  80% { transform: translate(20%, -20%); }
+}
+
+.animate-glow-wander-1 { animation: glow-wander-1 8s ease-in-out infinite; }
+.animate-glow-wander-2 { animation: glow-wander-2 10s ease-in-out infinite; }
+.animate-glow-wander-3 { animation: glow-wander-3 12s ease-in-out infinite; }
+
+/* ── Fade/slide in ────────────────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes stepFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes recentSearchesIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Evaluating card animations ───────────────────────────────────── */
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.animate-dot-pulse {
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 0.9s step-end infinite;
+}
+
+@keyframes bar-breathe {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1.0; }
+}
+
+.animate-bar-breathe {
+  animation: bar-breathe 2.2s ease-in-out infinite;
+}
+
+/* ── Pulse ring ───────────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+/* ── Progress ─────────────────────────────────────────────────────── */
+@keyframes progress {
+  from { width: 0%; }
+  to { width: 85%; }
+}
+
+.animate-progress {
+  animation: progress 6s ease-out forwards;
+}

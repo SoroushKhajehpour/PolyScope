@@ -1,9 +1,0 @@
-<% if @markets.empty? %>
-  <p class="px-4 py-4 text-sm text-[#94a3b8]">No markets found</p>
-<% else %>
-  <div class="max-h-[28rem] overflow-y-auto">
-    <% @markets.each do |market| %>
-      <%= render partial: "markets/search_result_row", locals: { market: market } %>
-    <% end %>
-  </div>
-<% end %>

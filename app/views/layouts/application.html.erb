@@ -1,33 +1,31 @@
 <!DOCTYPE html>
-<html lang="en" class="antialiased">
+<html lang="en">
   <head>
-    <title><%= content_for(:title) || "Polyscope" %></title>
+    <title><%= content_for(:title) || "PolyScope" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%= yield :head %>
-
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%= turbo_include_tags %>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <%= vite_client_tag %>
+    <%= vite_react_refresh_tag %>
+    <%= vite_javascript_tag "entrypoints/application.tsx" %>
+
+    <%= yield :head %>
   </head>
 
-  <body class="flex min-h-screen flex-col bg-background text-text-primary">
-    <%= render Layout::NavbarComponent.new %>
-    <main class="container mx-auto flex-1 px-5 pt-20">
-      <%= yield %>
-    </main>
-    <%= render Layout::FooterComponent.new %>
-    <% if Rails.env.development? %>
+  <body>
+    <%= yield %>
+
+    <% if Rails.env.development? && ENV["SHOW_API_DIAGNOSTICS"] == "true" %>
       <div id="dev_api_diagnostics_overlay" style="position:fixed;right:12px;bottom:12px;z-index:9999;max-width:340px;background:rgba(15,23,42,.95);color:#e2e8f0;border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:12px;font-size:11px;line-height:1.4;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;">
         Loading API diagnostics...
       </div>
@@ -35,7 +33,7 @@
         (function() {
           function sectionHtml(title, s) {
             if (!s) return "<strong>" + title + "</strong><br>Calls: 0<br>";
-            var lines = ["<strong>" + title + "</strong>", "Calls: " + (s.calls || 0), "Cache: " + (s.cache_hit_rate != null ? s.cache_hit_rate + "%" : "—")];
+            var lines = ["<strong>" + title + "</strong>", "Calls: " + (s.calls || 0), "Cache: " + (s.cache_hit_rate != null ? s.cache_hit_rate + "%" : "\u2014")];
             if (s.rate_limit && (s.rate_limit.usage_pct != null || s.rate_limit.remaining != null)) {
               if (s.rate_limit.usage_pct != null) lines.push("Usage: " + s.rate_limit.usage_pct + "%");
               if (s.rate_limit.remaining != null) lines.push("Remaining: " + s.rate_limit.remaining);
@@ -48,17 +46,15 @@
             var html = "<strong>API Diagnostics</strong><br>";
             html += sectionHtml("OpenAI", data.openai);
             html += sectionHtml("Anthropic", data.anthropic);
-            html += "—<br>Total calls: " + (data.total_calls || 0) + " &middot; Deduped: " + (data.deduped_calls || 0);
+            html += "\u2014<br>Total calls: " + (data.total_calls || 0) + " &middot; Deduped: " + (data.deduped_calls || 0);
             el.innerHTML = html;
           }
-
           function poll() {
             fetch("/dev/api_diagnostics", { headers: { "Accept": "application/json" } })
               .then(function(r) { return r.json(); })
               .then(renderDiag)
               .catch(function() {});
           }
-
           poll();
           setInterval(poll, 4000);
         })();

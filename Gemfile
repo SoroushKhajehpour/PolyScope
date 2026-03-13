@@ -5,13 +5,10 @@ gem "propshaft"
 gem "pg", "~> 1.1"
 gem "pgvector"
 gem "puma", ">= 5.0"
-gem "jsbundling-rails"
-gem "turbo-rails"
-gem "stimulus-rails"
-gem "cssbundling-rails"
 gem "jbuilder"
 
-gem "view_component"
+gem "vite_rails", "~> 3.0"
+gem "inertia_rails", "~> 3.6"
 
 gem "faraday"
 
@@ -64,5 +61,4 @@ gem "redis"
 gem "dotenv-rails", groups: [:development, :test]
 
 
-gem "tailwindcss-rails", "~> 4.3"
 

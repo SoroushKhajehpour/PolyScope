@@ -48,11 +48,9 @@ class RiskScoreCalculationJob < ApplicationJob
     risk_score = market.reload.risk_score
     return unless risk_score
 
-    Turbo::StreamsChannel.broadcast_replace_to(
-      "market_#{market.id}_score",
-      target: "risk_score_result",
-      partial: "markets/risk_score_result",
-      locals: { market: market, risk_score: risk_score }
+    ActionCable.server.broadcast(
+      "score_channel_#{market.id}",
+      { event: "score_complete" }
     )
   rescue StandardError => e
     Rails.logger.warn("[RiskScoreCalculationJob] market_id=#{market.id} #{e.class}: #{e.message}")
