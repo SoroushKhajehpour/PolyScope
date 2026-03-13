@@ -21,7 +21,7 @@ const ACCENT_STYLES: Record<ChipAccent, { border: string; text: string }> = {
 
 function formatValue(value: string | null, fallback: string): string {
   if (!value) return fallback
-  const formatted = value.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+  const formatted = value.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
   return formatted
 }
 
