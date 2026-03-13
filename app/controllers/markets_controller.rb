@@ -166,7 +166,6 @@ class MarketsController < ApplicationController
     return false if market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
     return false if market.end_date.present? && market.end_date <= 24.hours.from_now
 
-    # Re-score if previous result was a fallback and the LLM is now available
     metadata = score.factor_metadata
     if metadata.is_a?(Hash)
       resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]

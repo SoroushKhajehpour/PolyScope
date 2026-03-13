@@ -217,6 +217,20 @@ module RiskScorer
           - factorScores: score each factor 0–100 where 0 = no risk and 100 = extreme risk.
             The score MUST be consistent with your factorExplanation for the same factor.
             Low risk → 0–39, Medium risk → 40–69, High risk → 70–100.
+
+          Per-factor scoring direction (CRITICAL — read carefully):
+          - resolution_clarity: HIGH score (70–100) means the criteria is VAGUE, SUBJECTIVE,
+            or POORLY DEFINED. LOW score (0–39) means the criteria is CLEAR and OBJECTIVE.
+            If your explanation describes ambiguity, undefined methodology, or subjectivity,
+            the score MUST be 70+.
+          - time_horizon: HIGH score means the deadline is FAR AWAY or UNSPECIFIED.
+            LOW score means a NEAR, PRECISE deadline.
+          - historical_accuracy: HIGH score means there is NO reliable track record or
+            the resolution source is UNPROVEN. LOW score means well-established, verifiable sources.
+          - manipulation_risk: HIGH score means the outcome is EASILY MANIPULATED or
+            depends on a controllable source. LOW score means manipulation is very difficult.
+          - information_asymmetry: HIGH score means INSIDERS have a major advantage.
+            LOW score means all participants have roughly equal information access.
         PROMPT
       end
 

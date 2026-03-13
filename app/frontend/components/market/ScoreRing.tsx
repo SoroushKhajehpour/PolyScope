@@ -10,8 +10,8 @@ function clampScore(value: number): number {
 }
 
 function gaugeColor(score: number): string {
-  if (score >= 70) return "#f59e0b"
-  if (score >= 40) return "#64748b"
+  if (score >= 70) return "#ef4444"
+  if (score >= 40) return "#f59e0b"
   return "#10b981"
 }
 

@@ -45,7 +45,9 @@ export default function Home() {
       clearTimeout(blurTimeoutRef.current)
       blurTimeoutRef.current = null
     }
-    if (query.length === 0 && recentSearches.searches.length > 0) {
+    if (query.trim().length > 0 && results.length > 0) {
+      setShowResults(true)
+    } else if (query.length === 0 && recentSearches.searches.length > 0) {
       setShowRecentSearches(true)
     }
   }
@@ -54,6 +56,7 @@ export default function Home() {
     setIsFocused(false)
     blurTimeoutRef.current = setTimeout(() => {
       setShowRecentSearches(false)
+      setShowResults(false)
     }, 150)
   }
 

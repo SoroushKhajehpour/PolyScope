@@ -10,14 +10,14 @@ function clamp(value: number): number {
 }
 
 function barColor(score: number): string {
-  if (score >= 70) return "bg-amber-500/80"
-  if (score >= 40) return "bg-slate-400/50"
+  if (score >= 70) return "bg-red-500/70"
+  if (score >= 40) return "bg-amber-500/70"
   return "bg-emerald-500/60"
 }
 
 function scoreTextColor(score: number): string {
-  if (score >= 70) return "text-amber-400"
-  if (score >= 40) return "text-slate-400"
+  if (score >= 70) return "text-red-400"
+  if (score >= 40) return "text-amber-400"
   return "text-emerald-400"
 }
 
