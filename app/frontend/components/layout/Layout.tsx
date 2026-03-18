@@ -9,7 +9,7 @@ interface LayoutProps {
 export default function Layout({ children, centerContent = false }: LayoutProps) {
   return (
     <div className="relative flex min-h-screen w-full max-w-full flex-col overflow-hidden bg-[#0A0E1A]">
-      <header className="relative z-20 h-[90px] w-full shrink-0">
+      <header className="relative z-10 h-[90px] w-full shrink-0">
         <StockTickerBar />
       </header>
 
@@ -21,7 +21,7 @@ export default function Layout({ children, centerContent = false }: LayoutProps)
         }}
       />
 
-      <main className="relative z-10 w-full flex-1">
+      <main className="relative z-20 w-full flex-1">
         <div className={centerContent ? "mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8" : "w-full"}>
           {children}
         </div>

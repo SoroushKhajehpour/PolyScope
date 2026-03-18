@@ -73,7 +73,7 @@ export default function Home() {
           <div className="w-full max-w-3xl">
             {/* Logo and tagline */}
             <div
-              className={`relative z-20 mb-6 transition-all duration-500 ${
+              className={`relative mb-6 transition-all duration-500 ${
                 isEntering ? "translate-y-3 opacity-0" : "translate-y-0 opacity-100"
               }`}
             >
