@@ -12,8 +12,10 @@
 /.env*
 !.env.example
 
+docs/
 
 .claudeignore
+.claude
 
 # Ignore all logfiles and tempfiles.
 /log/*

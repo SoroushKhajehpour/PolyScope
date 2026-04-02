@@ -8,7 +8,7 @@ Polymarket traders routinely lose money not because they were wrong about the wo
 
 Examples: 
 
-**The Zelenskyy suit market ($242M in volume)** asked whether Zelenskyy would "wear a suit" before July 2025. He showed up to a NATO summit in formal attire. The market initially resolved Yes — then UMA voters reversed it to No nine days later, arguing the outfit didn't technically qualify as a "suit." Menswear experts couldn't even agree. Traders called it the biggest scam in Polymarket history.
+**The Zelens'k'yy suit market ($242M in volume)** asked whether Zelenskyy would "wear a suit" before July 2025. He showed up to a NATO summit in formal attire. The market initially resolved Yes — then UMA voters reversed it to No nine days later, arguing the outfit didn't technically qualify as a "suit." Menswear experts couldn't even agree. Traders called it the biggest scam in Polymarket history.
 
 **The Venezuela invasion market ($11M)** asked whether the U.S. would invade Venezuela. A Delta Force operation captured President Maduro with 150+ aircraft conducting airstrikes. Polymarket refused to pay out, arguing the operation didn't constitute an "invasion" because it lacked "territorial control."
 

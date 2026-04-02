@@ -114,6 +114,47 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Score: 42"
   end
 
+  test "show renders result when score exists but is only soft-stale (end date soon)" do
+    market = Market.create!(
+      event_id: "e-show-soft-stale",
+      event_question: "Soon ending?",
+      condition_id: "0x4",
+      category: "Politics",
+      status: "active",
+      end_date: 12.hours.from_now,
+      resolution_criteria: "Resolved by official source."
+    )
+    market.create_risk_score!(
+      score: 55,
+      level: "medium",
+      factors: {},
+      computed_at: 30.minutes.ago
+    )
+
+    fake_client = Object.new
+    fake_client.define_singleton_method(:event) do |event_id|
+      {
+        "id" => event_id,
+        "title" => "Soon ending?",
+        "description" => "Resolved by official source.",
+        "endDate" => 12.hours.from_now.iso8601,
+        "liquidity" => "1000",
+        "volume" => "1000",
+        "active" => true
+      }
+    end
+    fake_client.define_singleton_method(:search) { |_query| { "events" => [] } }
+
+    PolymarketClient.stub(:new, fake_client) do
+      get market_path(market.event_id)
+    end
+
+    assert_response :success
+    assert_includes response.body, "Risk Level"
+    assert_includes response.body, "Score: 55"
+    refute_includes response.body, "Evaluating Risk"
+  end
+
   test "show treats score as stale when clarification is newer than computed_at" do
     market = Market.create!(
       event_id: "e-show-stale",

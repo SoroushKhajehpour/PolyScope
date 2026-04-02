@@ -18,6 +18,12 @@ export interface MarketProps {
   resolution_criteria: string | null
 }
 
+/** Only set on MarketEvaluating — ignore stale scores from before this page load when polling */
+export interface MarketEvaluatingProps {
+  market: MarketProps
+  score_poll_after: number
+}
+
 export interface Factor {
   label: string
   score: number
@@ -49,6 +55,7 @@ export interface RiskScoreProps {
   computed_at: string | null
   summary: string | null
   confidence_note: string | null
+  confidence_explanation: string | null
   factors: Factor[]
   top_risk_drivers: string[]
   why_not_higher_risk: string[]

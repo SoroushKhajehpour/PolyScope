@@ -1,11 +1,12 @@
 import { useState } from "react"
+import * as Tooltip from "@radix-ui/react-tooltip"
 import type { ResolutionCriteria } from "@/types/market"
 
 interface ResolutionTabProps {
   criteria: ResolutionCriteria | null
 }
 
-function AmbiguityChip({ level }: { level: string | null }) {
+function AmbiguityChip({ level, tooltip }: { level: string | null; tooltip?: string | null }) {
   if (!level) return null
   const normalized = level.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
 
@@ -23,13 +24,33 @@ function AmbiguityChip({ level }: { level: string | null }) {
     textColor = "text-sky-400"
   }
 
-  return (
-    <div className={`flex items-center gap-2 border-l-[3px] ${borderColor} bg-white/4 py-1 pr-3 pl-2.5`}>
+  const inner = (
+    <div className={`flex items-center gap-2 border-l-[3px] ${borderColor} bg-white/4 py-1 pr-3 pl-2.5 ${tooltip ? "cursor-help" : ""}`}>
       <span className="font-mono text-[10px] font-medium tracking-wider text-slate-500">
         AMBIGUITY
       </span>
       <span className={`text-[13px] font-semibold ${textColor}`}>{normalized}</span>
     </div>
+  )
+
+  if (!tooltip) return inner
+
+  return (
+    <Tooltip.Provider>
+      <Tooltip.Root delayDuration={200}>
+        <Tooltip.Trigger asChild>{inner}</Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="bottom"
+            sideOffset={6}
+            className="z-50 max-w-xs rounded-md border border-white/10 bg-slate-900 px-3 py-2 text-xs leading-relaxed text-slate-300 shadow-lg"
+          >
+            {tooltip}
+            <Tooltip.Arrow className="fill-slate-900" />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   )
 }
 
@@ -46,7 +67,7 @@ export default function ResolutionTab({ criteria }: ResolutionTabProps) {
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             Resolution Criteria
           </h3>
-          <AmbiguityChip level={criteria?.ambiguityLevel ?? null} />
+          <AmbiguityChip level={criteria?.ambiguityLevel ?? null} tooltip={criteria?.overallNote} />
         </div>
         <div className="px-5 py-4">
           <p

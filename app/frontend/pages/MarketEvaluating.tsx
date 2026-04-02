@@ -2,14 +2,10 @@ import Layout from "@/components/layout/Layout"
 import EvaluatingCard from "@/components/market/EvaluatingCard"
 import { useScorePolling } from "@/hooks/useScorePolling"
 import { useActionCableScore } from "@/hooks/useActionCableScore"
-import type { MarketProps } from "@/types/market"
+import type { MarketEvaluatingProps } from "@/types/market"
 
-interface Props {
-  market: MarketProps
-}
-
-export default function MarketEvaluating({ market }: Props) {
-  useScorePolling(market.event_id)
+export default function MarketEvaluating({ market, score_poll_after }: MarketEvaluatingProps) {
+  useScorePolling(market.event_id, score_poll_after)
   useActionCableScore(market.id, market.event_id)
 
   return (

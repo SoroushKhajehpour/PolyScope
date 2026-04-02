@@ -44,6 +44,13 @@ class RiskScoreCalculationJob < ApplicationJob
     return if market.blank?
     return if market.resolution_criteria.to_s.strip.empty?
 
+    # Must run before RiskScorer: SimilarOutcomesScorer (F6) needs market_embedding.
+    # Enqueue path previously raced MarketEmbeddingJob vs this job; inline path did not.
+    if market.market_embedding.blank?
+      MarketEmbeddingJob.perform_now(market.id, session_key: session_key)
+      market.reload
+    end
+
     RiskScorer.call(market, persist: true, session_key: session_key)
     risk_score = market.reload.risk_score
     return unless risk_score

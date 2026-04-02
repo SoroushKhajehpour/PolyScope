@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react"
 import { router } from "@inertiajs/react"
 
-export function useScorePolling(eventId: string, intervalMs = 8000) {
+export function useScorePolling(eventId: string, scorePollAfter: number, intervalMs = 8000) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     const poll = () => {
-      fetch(`/markets/${eventId}/score_result.json`, {
+      const qs = new URLSearchParams({ after: String(scorePollAfter) })
+      fetch(`/markets/${eventId}/score_result.json?${qs}`, {
         headers: { Accept: "application/json" },
       })
         .then((r) => {
@@ -30,5 +31,5 @@ export function useScorePolling(eventId: string, intervalMs = 8000) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [eventId, intervalMs])
+  }, [eventId, scorePollAfter, intervalMs])
 }

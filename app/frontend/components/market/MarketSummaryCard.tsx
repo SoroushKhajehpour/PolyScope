@@ -1,3 +1,4 @@
+import * as Tooltip from "@radix-ui/react-tooltip"
 import type { RiskScoreProps } from "@/types/market"
 
 interface MarketSummaryCardProps {
@@ -46,6 +47,45 @@ function liquidityAccent(level: string): ChipAccent {
   return "amber"
 }
 
+function Chip({ tag, value, accent, tooltip }: {
+  tag: string
+  value: string
+  accent: ChipAccent
+  tooltip?: string | null
+}) {
+  const styles = ACCENT_STYLES[accent]
+  const inner = (
+    <div
+      className={`flex items-baseline gap-2 border-l-[3px] ${styles.border} bg-white/4 py-1.5 pr-3.5 pl-3 ${tooltip ? "cursor-help" : ""}`}
+    >
+      <span className="font-mono text-[10px] font-medium tracking-wider text-slate-500">
+        {tag}
+      </span>
+      <span className={`text-[13px] font-semibold ${styles.text}`}>
+        {value}
+      </span>
+    </div>
+  )
+
+  if (!tooltip) return inner
+
+  return (
+    <Tooltip.Root delayDuration={200}>
+      <Tooltip.Trigger asChild>{inner}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side="bottom"
+          sideOffset={6}
+          className="z-50 max-w-xs rounded-md border border-white/10 bg-slate-900 px-3 py-2 text-xs leading-relaxed text-slate-300 shadow-lg"
+        >
+          {tooltip}
+          <Tooltip.Arrow className="fill-slate-900" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  )
+}
+
 export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps) {
   const riskLevel = formatValue(riskScore.level, "Unknown")
   const confidence = formatValue(riskScore.confidence_tier, "Unknown")
@@ -57,12 +97,6 @@ export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps)
   const confAccent = confidenceAccent(riskScore.confidence_tier ?? "unknown")
   const liqAccent = liquidityAccent(riskScore.liquidity?.label ?? "unknown")
 
-  const chips: Array<{ tag: string; value: string; accent: ChipAccent }> = [
-    { tag: "RISK", value: riskLevel, accent: riskAccent },
-    { tag: "CONFIDENCE", value: confidence, accent: confAccent },
-    { tag: "LIQUIDITY", value: liquidity, accent: liqAccent },
-  ]
-
   return (
     <section className="rounded-md border border-white/8 bg-white/3">
       <div className="border-b border-white/6 px-5 py-3">
@@ -72,27 +106,24 @@ export default function MarketSummaryCard({ riskScore }: MarketSummaryCardProps)
       </div>
 
       <div className="p-5">
-        {/* Chips row */}
-        <div className="flex flex-wrap items-stretch gap-2">
-          {chips.map((chip) => {
-            const styles = ACCENT_STYLES[chip.accent]
-            return (
-              <div
-                key={chip.tag}
-                className={`flex items-baseline gap-2 border-l-[3px] ${styles.border} bg-white/4 py-1.5 pr-3.5 pl-3`}
-              >
-                <span className="font-mono text-[10px] font-medium tracking-wider text-slate-500">
-                  {chip.tag}
-                </span>
-                <span className={`text-[13px] font-semibold ${styles.text}`}>
-                  {chip.value}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <Tooltip.Provider>
+          <div className="flex flex-wrap items-stretch gap-2">
+            <Chip tag="RISK" value={riskLevel} accent={riskAccent} />
+            <Chip
+              tag="CONFIDENCE"
+              value={confidence}
+              accent={confAccent}
+              tooltip={riskScore.confidence_explanation}
+            />
+            <Chip
+              tag="LIQUIDITY"
+              value={liquidity}
+              accent={liqAccent}
+              tooltip={riskScore.liquidity?.explanation}
+            />
+          </div>
+        </Tooltip.Provider>
 
-        {/* Summary prose */}
         <p className="mt-4 text-sm leading-relaxed text-slate-200">{summaryText}</p>
       </div>
     </section>

@@ -29,6 +29,7 @@ module RiskScorer
           topRiskDrivers: top_risk_drivers(factors),
           whyNotHigherRisk: why_not_higher_risk(factors, market_type),
           confidenceNote: confidence[:note],
+          confidenceExplanation: confidence_explanation(confidence, resolution_analysis),
           liquidityNote: liquidity_note_for(liquidity_risk),
           resolutionCriteria: resolution_criteria_card(market, resolution_analysis)
         }
@@ -117,6 +118,36 @@ module RiskScorer
           low: "Relevant information is broadly available, limiting the advantage any single participant could hold."
         }
       }.freeze
+
+      def confidence_explanation(confidence, resolution_analysis)
+        tier = confidence[:tier].to_s
+        missing = confidence[:missing_sources] || []
+        llm_available = !resolution_analysis[:from_fallback]
+
+        parts = []
+        case tier
+        when "high"
+          parts << "All primary data sources contributed to this score."
+          parts << "AI analysis confirmed the ambiguity assessment." if llm_available
+        when "medium"
+          if missing.any?
+            parts << "Score confidence is moderate because #{missing.join(' and ')} could not be factored in."
+          else
+            parts << "Score confidence is moderate — the available data provides a reasonable but incomplete picture."
+          end
+        when "low"
+          if missing.length >= 2
+            parts << "Confidence is low because multiple data sources were unavailable: #{missing.join(', ')}."
+          elsif missing.any?
+            parts << "Confidence is low because #{missing.first} was unavailable."
+          else
+            parts << "Confidence is low due to limited data availability for this market."
+          end
+        end
+
+        parts << "AI-powered resolution analysis was not available for this evaluation." unless llm_available
+        parts.join(" ")
+      end
 
       def liquidity_note_for(score)
         numeric = score.to_i.clamp(0, 100)

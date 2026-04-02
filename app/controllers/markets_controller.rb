@@ -51,10 +51,35 @@ class MarketsController < ApplicationController
         market: serialize_market(@market),
         risk_score: serialize_risk_score(@risk_score)
       }
+    elsif @risk_score.blank?
+      if sidekiq_available?
+        enqueue_supporting_jobs(@market)
+        render inertia: "MarketEvaluating", props: evaluating_props(@market)
+      else
+        process_scoring_inline(@market)
+        @risk_score = @market.reload.risk_score
+        render inertia: "MarketShow", props: {
+          market: serialize_market(@market),
+          risk_score: serialize_risk_score(@risk_score)
+        }
+      end
+    elsif blocking_display_stale?(@market)
+      if sidekiq_available?
+        enqueue_supporting_jobs(@market)
+        render inertia: "MarketEvaluating", props: evaluating_props(@market)
+      else
+        process_scoring_inline(@market)
+        @risk_score = @market.reload.risk_score
+        render inertia: "MarketShow", props: {
+          market: serialize_market(@market),
+          risk_score: serialize_risk_score(@risk_score)
+        }
+      end
     elsif sidekiq_available?
       enqueue_supporting_jobs(@market)
-      render inertia: "MarketEvaluating", props: {
-        market: serialize_market(@market)
+      render inertia: "MarketShow", props: {
+        market: serialize_market(@market),
+        risk_score: serialize_risk_score(@risk_score)
       }
     else
       process_scoring_inline(@market)
@@ -76,7 +101,12 @@ class MarketsController < ApplicationController
   def score_result
     market = Market.find_by(event_id: params[:event_id].to_s)
     risk_score = market&.risk_score
-    return head :no_content unless market && risk_score && score_fresh?(market)
+    return head :no_content unless market && risk_score&.computed_at.present?
+
+    if params[:after].present?
+      after_t = Time.zone.at(params[:after].to_f)
+      return head :no_content if risk_score.computed_at <= after_t
+    end
 
     ApiDiagnostics.record_call(service: "markets.score_result") if defined?(ApiDiagnostics)
 
@@ -84,6 +114,34 @@ class MarketsController < ApplicationController
   end
 
   private
+
+  def evaluating_props(market)
+    {
+      market: serialize_market(market),
+      score_poll_after: Time.current.to_f
+    }
+  end
+
+  # Stale for reasons that should block showing the current score until a new run completes
+  # (e.g. resolution text changed). Differs from score_fresh? — end_date / 4h age alone are not blocking.
+  def blocking_display_stale?(market)
+    score = market.risk_score
+    return false unless score&.computed_at.present?
+
+    if market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
+      return true
+    end
+
+    metadata = score.factor_metadata
+    if metadata.is_a?(Hash)
+      resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
+      if resolution.is_a?(Hash) && (resolution["from_fallback"] == true || resolution[:from_fallback] == true)
+        return true if LlmClient.new.configured?
+      end
+    end
+
+    false
+  end
 
   # Read-only API search for live dropdown. No DB writes.
   def search_results(query)
@@ -180,8 +238,7 @@ class MarketsController < ApplicationController
   def enqueue_supporting_jobs(market)
     session_key = ai_session_key
     # ✅ LLM/EMBEDDINGS CALL TRIGGER — only reachable from explicit user market selection
-    # Do not move or duplicate this call elsewhere.
-    MarketEmbeddingJob.perform_later(market.id, session_key: session_key) if market.market_embedding.blank?
+    # Embeddings run inside RiskScoreCalculationJob before RiskScorer (F6 / similar markets).
     RiskScoreCalculationJob.enqueue_unique(market.id, session_key: session_key)
   end
 
@@ -251,6 +308,7 @@ class MarketsController < ApplicationController
       computed_at: risk_score.computed_at&.iso8601,
       summary: explanation["summary"],
       confidence_note: explanation["confidenceNote"],
+      confidence_explanation: explanation["confidenceExplanation"],
       factors: factors.map { |f|
         { label: f["label"], score: f["score"].to_i, explanation: f["explanation"] }
       },
