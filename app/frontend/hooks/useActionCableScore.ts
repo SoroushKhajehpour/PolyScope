@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { router } from "@inertiajs/react"
+import { marketPath } from "@/lib/utils"
 import { createConsumer } from "@rails/actioncable"
 
 const consumer = createConsumer()
@@ -11,7 +12,7 @@ export function useActionCableScore(marketId: number, eventId: string) {
       {
         received(data: { event: string }) {
           if (data.event === "score_complete") {
-            router.visit(`/markets/${eventId}`, { preserveState: false })
+            router.visit(marketPath(eventId), { preserveState: false })
           }
         },
       }

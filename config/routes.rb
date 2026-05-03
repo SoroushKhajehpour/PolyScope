@@ -14,14 +14,14 @@ Rails.application.routes.draw do
 
   get "/watchlist", to: "markets#watchlist"
 
+  # Literal segments must be registered before /markets/:event_id or paths like
+  # /markets/live_search are handled as show(event_id: "live_search").
+  get "markets/live_search", to: "markets#live_search", as: :live_search_markets
+  post "markets/digest", to: "markets#digest", as: :digest_markets
+
   resources :markets, only: [:show], param: :event_id do
     member do
       get :score_result
-    end
-
-    collection do
-      get :live_search
-      post :digest
     end
   end
 

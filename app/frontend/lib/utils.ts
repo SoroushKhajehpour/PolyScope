@@ -21,6 +21,12 @@ export function formatEndDate(dateStr: string | null | undefined): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
+/** Path for a market detail page; encodes odd event ids safely. */
+export function marketPath(eventId: string): string {
+  const id = eventId.trim()
+  return `/markets/${encodeURIComponent(id)}`
+}
+
 export function formatScoreAsOf(iso: string | null | undefined): string {
   if (!iso) return "—"
   const d = new Date(iso)

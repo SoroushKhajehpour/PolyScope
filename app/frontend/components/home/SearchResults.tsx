@@ -1,6 +1,6 @@
 import { router } from "@inertiajs/react"
 import type { MarketSearchResult } from "@/types/market"
-import { formatVolume, formatEndDate } from "@/lib/utils"
+import { formatVolume, formatEndDate, marketPath } from "@/lib/utils"
 import { useWatchlist } from "@/hooks/useWatchlist"
 
 interface SearchResultsProps {
@@ -12,7 +12,7 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
   const { toggle, isWatched } = useWatchlist()
 
   const handleClick = (result: MarketSearchResult) => {
-    router.visit(`/markets/${result.event_id}`)
+    router.visit(marketPath(result.event_id))
   }
 
   return (

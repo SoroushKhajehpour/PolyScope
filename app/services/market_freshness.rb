@@ -42,11 +42,11 @@ class MarketFreshness
 
     def timeline_entry_timestamp(entry)
       raw = entry[:at].presence || entry["at"].presence
-      return Time.zone.at(0) if raw.blank?
+      return Time.at(0).utc if raw.blank?
 
       Time.iso8601(raw)
     rescue ArgumentError, TypeError
-      Time.zone.at(0)
+      Time.at(0).utc
     end
 
     def snapshot_entry(s)

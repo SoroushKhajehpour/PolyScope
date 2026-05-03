@@ -3,6 +3,7 @@ import { Link, router } from "@inertiajs/react"
 import Layout from "@/components/layout/Layout"
 import { useWatchlist } from "@/hooks/useWatchlist"
 import { useMarketsDigest } from "@/hooks/useMarketsDigest"
+import { marketPath } from "@/lib/utils"
 
 function badgeFor(row: {
   rules_changed_after_score?: boolean
@@ -63,7 +64,7 @@ export default function Watchlist() {
                 >
                   <button
                     type="button"
-                    onClick={() => router.visit(`/markets/${event_id}`)}
+                    onClick={() => router.visit(marketPath(event_id))}
                     className="flex min-w-0 flex-1 items-center gap-4 text-left"
                   >
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
