@@ -57,7 +57,7 @@ OPENAI_API_KEY=...
 
 ## Running
 
-Start **Rails + Vite + Sidekiq** together (needed for pages, API, and background scoring):
+Start **Rails + Vite** together (pages and API):
 
 ```
 bin/dev
@@ -69,7 +69,13 @@ Or the same thing via npm:
 npm run dev:full
 ```
 
-`npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so the app will not load in the browser without also running `bin/rails server` (or `bin/dev`).
+`npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so opening `http://localhost:3000` will show nothing useful until you also run `bin/rails server` (or use `bin/dev` / `npm run dev:full` above).
+
+**Sidekiq** is not started by `bin/dev`. Without it, scoring still works via the server’s inline fallback; for throughput and background jobs, start Redis, then in another terminal:
+
+```
+bundle exec sidekiq -C config/sidekiq.yml
+```
 
 Optional: strip `Co-authored-by:` lines from commits (e.g. IDE-added trailers):
 
@@ -77,7 +83,12 @@ Optional: strip `Co-authored-by:` lines from commits (e.g. IDE-added trailers):
 git config core.hooksPath .githooks
 ```
 
-This starts the Rails server, Vite dev server, and Sidekiq via Foreman.
+### Troubleshooting (blank page or “not loading”)
+
+1. **Use `bin/dev` (or `npm run dev:full`) from the `app/` directory**, not `npm run dev` alone.
+2. **Open the Rails URL**: `http://localhost:3000` (Vite’s dev port, e.g. 3036, is only for HMR; the HTML comes from Rails).
+3. **Pending migrations**: if you see a migration error in the browser or logs, run `bin/rails db:prepare` and reload.
+4. **Browser devtools**: check the Console and Network tabs for failed JS (often Vite not reachable if Rails isn’t proxying to the Vite dev server).
 
 To seed market data:
 
