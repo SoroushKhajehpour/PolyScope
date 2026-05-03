@@ -76,6 +76,7 @@ npm run dev:full
 - **Development** (default): scoring runs **inline** in the same request, so the market page returns **with a risk score** when API keys and Polymarket data are available (first load can take a while). Set **`POLYSCOPE_BACKGROUND_SCORING=1`** to use background jobs + the evaluating screen instead (Rails uses the **`:async`** job adapter in development so Sidekiq/Redis are not required for that path).
 - **Production**: scoring uses **background jobs** + the evaluating/polling flow by default (avoids HTTP timeouts). Set **`POLYSCOPE_FORCE_INLINE_SCORING=1`** only if you intentionally want synchronous scoring.
 - **Resolution text**: if Polymarket does not send separate criteria copy, the server fills a minimal criteria string from the question so scoring can run.
+- If full scoring still fails (missing API keys, network, etc.), the app saves a **provisional** mid-range score so the market page still loads, with a visible banner — set **`ANTHROPIC_API_KEY`** and **`OPENAI_API_KEY`** and reload for a real analysis.
 
 **Sidekiq** is not started by `bin/dev`. In production, run a Sidekiq worker so queued scores complete. For optional local Sidekiq UI / Redis, start Redis, then:
 

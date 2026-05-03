@@ -81,6 +81,8 @@ export interface SimilarResolvedMarketProps {
 }
 
 export interface RiskScoreProps {
+  /** True when full scoring failed and a provisional estimate was saved instead */
+  scoring_fallback?: boolean
   score: number
   level: string
   confidence_tier: string | null

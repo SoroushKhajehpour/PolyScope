@@ -137,6 +137,63 @@ module RiskScorer
       result
     end
 
+    # Always persist something when full scoring fails so the market page is never empty-handed.
+    def persist_error_fallback!(market, error:)
+      return unless market&.id.present?
+
+      err = error.is_a?(Exception) ? "#{error.class}: #{error.message}" : error.to_s
+      resolution_analysis = { from_fallback: true, fallback_reason: "scoring_error" }
+      explanation = {
+        summary: "Provisional risk estimate. Full analysis did not complete.",
+        confidenceNote: err.truncate(500),
+        confidenceExplanation: "Set ANTHROPIC_API_KEY (Claude) and OPENAI_API_KEY (embeddings) on the server, then reload. Check logs for details.",
+        factors: [],
+        topRiskDrivers: ["Automated analysis failed or returned no score."],
+        whyNotHigherRisk: [],
+        resolutionCriteria: {
+          criteriaText: market.resolution_criteria.to_s.truncate(500).presence,
+          hasAmbiguity: true,
+          ambiguityLevel: "UNKNOWN",
+          misinterpretations: [],
+          overallNote: "Unable to run full resolution analysis.",
+          sourceLabel: nil
+        },
+        liquidityNote: { label: "Liquidity", explanation: "—" }
+      }
+      result = {
+        score: 50,
+        level: "medium",
+        market_type: :SUBJECTIVE_QUALITATIVE,
+        market_type_source: :error_fallback,
+        resolution_clarity_base: 50,
+        type_base_weight: 0.5,
+        factors: {
+          resolution_clarity: 50,
+          time_horizon: 50,
+          historical_accuracy: 50,
+          manipulation_risk: 50,
+          information_asymmetry: 50
+        },
+        liquidity_risk: 50,
+        confidence_tier: "low",
+        confidence_note: err.truncate(500),
+        factors_imputed: [],
+        override_gate_applied: "error_fallback",
+        factor_metadata: {
+          scoring_fallback: true,
+          scoring_error: err.truncate(500),
+          resolution_analysis: resolution_analysis,
+          explanation: explanation,
+          confidence: { tier: "low", missing_sources: ["anthropic", "openai"] },
+          data_sources_unavailable: %w[anthropic openai],
+          similar_outcomes: {}
+        }
+      }
+      persist_risk_score!(market, result)
+    rescue StandardError => e
+      Rails.logger.error("[RiskScorer] persist_error_fallback! failed: #{e.class}: #{e.message}")
+    end
+
     private
 
     def compute_breakdown(market:, market_type:, market_type_confidence:, resolution_analysis:, source_result:, similar_result:)

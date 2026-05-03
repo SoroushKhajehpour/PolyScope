@@ -49,6 +49,21 @@ export default function MarketShow({ market, risk_score, score_context }: Props)
 
         {risk_score ? (
           <div className="space-y-6">
+            {risk_score.scoring_fallback && (
+              <div
+                role="status"
+                className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-[13px] leading-relaxed text-amber-100/95"
+              >
+                <p className="font-medium text-amber-50">Provisional score</p>
+                <p className="mt-1 text-amber-100/85">
+                  Full analysis did not complete (often missing{" "}
+                  <span className="font-mono text-[12px]">ANTHROPIC_API_KEY</span> or{" "}
+                  <span className="font-mono text-[12px]">OPENAI_API_KEY</span>
+                  ). The number below is an estimate so the page still loads — fix keys and refresh for a full
+                  breakdown.
+                </p>
+              </div>
+            )}
             <MarketHero market={market} riskScore={risk_score} />
             <MarketSummaryCard riskScore={risk_score} />
             <CriteriaTimeline entries={timeline} />

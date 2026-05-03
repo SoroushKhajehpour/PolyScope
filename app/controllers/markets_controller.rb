@@ -290,8 +290,13 @@ class MarketsController < ApplicationController
     me = market.market_embedding
     MarketEmbeddingJob.perform_now(market.id, session_key: session_key) if me.blank? || me.embedding_vector.blank?
     RiskScoreCalculationJob.perform_now(market.id, session_key: session_key)
+    market.reload
+    if market.risk_score.blank?
+      RiskScorer.persist_error_fallback!(market, error: "Scoring finished without a persisted risk score")
+    end
   rescue StandardError => e
     Rails.logger.warn("[MarketsController] inline scoring failed: #{e.class}: #{e.message}")
+    RiskScorer.persist_error_fallback!(market, error: e) if market&.persisted?
   end
 
   # Development: default inline scoring so the first response includes MarketShow + risk score when APIs succeed.
@@ -362,6 +367,7 @@ class MarketsController < ApplicationController
     liquidity = explanation["liquidityNote"].is_a?(Hash) ? explanation["liquidityNote"] : {}
 
     {
+      scoring_fallback: metadata["scoring_fallback"] == true || metadata[:scoring_fallback] == true,
       score: risk_score.score.to_i,
       level: risk_score.level.to_s,
       confidence_tier: risk_score.confidence_tier.to_s.presence,
