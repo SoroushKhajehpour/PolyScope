@@ -38,6 +38,12 @@ class LlmClientTest < ActiveSupport::TestCase
     end
   end
 
+  test "default_model_id reads ANTHROPIC_MODEL when set" do
+    with_env("ANTHROPIC_MODEL" => "claude-test-model") do
+      assert_equal "claude-test-model", LlmClient.default_model_id
+    end
+  end
+
   def with_env(hash)
     old = ENV.to_h
     hash.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }

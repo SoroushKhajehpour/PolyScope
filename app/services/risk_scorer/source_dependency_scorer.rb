@@ -78,7 +78,7 @@ module RiskScorer
         return nil unless client.configured?
 
         prompt_version = RiskScoringConfig.prompt_version
-        model_id = LlmClient::DEFAULT_MODEL
+        model_id = LlmClient.default_model_id
         prefix = "source_classification"
         cache_key = Digest::SHA256.hexdigest([prefix, model_id, prompt_version, text].join("\n"))
 
@@ -90,7 +90,7 @@ module RiskScorer
         system_prompt = load_system_prompt
         return nil if system_prompt.blank?
 
-        result = client.chat(system: system_prompt, user: "Classify this resolution criteria:\n\n#{text}", temperature: 0.0, model: model_id)
+        result = client.chat(system: system_prompt, user: "Classify this resolution criteria:\n\n#{text}", temperature: 0.0, model: nil)
         score = parse_score(result)
         return nil if score.nil?
 

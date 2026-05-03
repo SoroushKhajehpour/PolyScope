@@ -39,11 +39,12 @@ module RiskScorer
         end
 
         dedupe_key = "misinterpretation:#{cache_key}"
+        # Use `next`, never `return`, inside this block — `return` skips AiCallGovernor lock cleanup.
         RiskScorer::AiCallGovernor.with_dedup_lock(dedupe_key) do
           cached_again = Rails.cache.read(cache_key)
           if cached_again.present?
             symbolized_again = cached_again.deep_symbolize_keys
-            return symbolized_again unless symbolized_again[:from_fallback] && LlmClient.new.configured?
+            next symbolized_again unless symbolized_again[:from_fallback] && LlmClient.new.configured?
           end
 
           budget = RiskScorer::AiCallGovernor.acquire_budget(provider: "anthropic", session_key: session_key)
@@ -53,28 +54,27 @@ module RiskScorer
               fallback_reason: budget[:reason]
             )
             Rails.cache.write(cache_key, fallback, expires_in: MISINTERPRETATION_CACHE_TTL)
-            return fallback
+            next fallback
           end
 
           client = LlmClient.new
           unless client.configured?
             fallback = fallback_misinterpretation_analysis(criteria_text).merge(from_fallback: true)
             Rails.cache.write(cache_key, fallback, expires_in: MISINTERPRETATION_CACHE_TTL)
-            return fallback
+            next fallback
           end
 
-          max_tokens = objective_market_title?(market_title) ? 400 : 600
           result = client.chat(
             system: system_prompt,
             user: user_prompt(criteria_text, market_title, category_label),
             temperature: 0.1,
-            model: LlmClient::DEFAULT_MODEL
+            model: nil
           )
 
           if result.blank?
             fallback = fallback_misinterpretation_analysis(criteria_text).merge(from_fallback: true)
             Rails.cache.write(cache_key, fallback, expires_in: MISINTERPRETATION_CACHE_TTL)
-            return fallback
+            next fallback
           end
 
           parsed = normalize_response(result)
@@ -82,7 +82,10 @@ module RiskScorer
           ApiDiagnostics.record_call(service: "anthropic.misinterpretation") if defined?(ApiDiagnostics)
           parsed
         end
-      rescue StandardError
+      rescue StandardError => e
+        Rails.logger.error(
+          "[ResolutionMisinterpretationAnalyzer] #{e.class}: #{e.message}\n#{Array(e.backtrace).first(12).join("\n")}"
+        )
         fallback = fallback_misinterpretation_analysis(criteria_text).merge(from_fallback: true)
         Rails.cache.write(cache_key, fallback, expires_in: MISINTERPRETATION_CACHE_TTL) if cache_key.present?
         fallback
@@ -300,11 +303,6 @@ module RiskScorer
         normalized
       end
 
-      def objective_market_title?(title)
-        keywords = %w[price above below exceed reach $ btc eth bitcoin ethereum crypto win championship election vote percent rate gdp index]
-        t = title.to_s.downcase
-        keywords.any? { |k| t.include?(k) }
-      end
     end
   end
 end
