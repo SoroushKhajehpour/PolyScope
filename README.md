@@ -86,9 +86,10 @@ git config core.hooksPath .githooks
 ### Troubleshooting (blank page or “not loading”)
 
 1. **Use `bin/dev` (or `npm run dev:full`) from the `app/` directory**, not `npm run dev` alone.
-2. **Open the Rails URL**: `http://localhost:3000` (Vite’s dev port, e.g. 3036, is only for HMR; the HTML comes from Rails).
+2. **Open the app at `http://127.0.0.1:3000`** (or `localhost:3000`). HTML is served by Rails; in development, JS/CSS load **directly from Vite** at `127.0.0.1:3036` (`skipProxy`), so wait until the terminal shows Vite is ready before expecting the UI.
 3. **Pending migrations**: if you see a migration error in the browser or logs, run `bin/rails db:prepare` and reload.
-4. **Browser devtools**: check the Console and Network tabs for failed JS (often Vite not reachable if Rails isn’t proxying to the Vite dev server).
+4. **Browser devtools**: open **Console** and **Network**. Failed requests to port **3036** mean Vite isn’t running yet or exited — fix the `vite` line in `bin/dev` output first.
+5. **`A server is already running`**: remove the stale PID file `tmp/pids/server.pid` (or stop the old Puma), then start `bin/dev` again.
 
 To seed market data:
 
