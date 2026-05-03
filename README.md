@@ -57,9 +57,19 @@ OPENAI_API_KEY=...
 
 ## Running
 
+Start **Rails + Vite + Sidekiq** together (needed for pages, API, and background scoring):
+
 ```
 bin/dev
 ```
+
+Or the same thing via npm:
+
+```
+npm run dev:full
+```
+
+`npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so the app will not load in the browser without also running `bin/rails server` (or `bin/dev`).
 
 Optional: strip `Co-authored-by:` lines from commits (e.g. IDE-added trailers):
 
