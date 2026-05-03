@@ -12,6 +12,9 @@ Rails.application.routes.draw do
 
   root "markets#index"
 
+  get "/methodology", to: "markets#methodology"
+  get "/watchlist", to: "markets#watchlist"
+
   resources :markets, only: [:show], param: :event_id do
     member do
       get :score_result
@@ -19,6 +22,7 @@ Rails.application.routes.draw do
 
     collection do
       get :live_search
+      post :digest
     end
   end
 
