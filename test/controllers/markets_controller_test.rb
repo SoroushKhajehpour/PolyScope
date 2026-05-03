@@ -201,4 +201,31 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Evaluating Risk"
   end
+
+  test "digest returns freshness payload for known events" do
+    market = Market.create!(
+      event_id: "e-digest-1",
+      event_question: "Digest Q?",
+      condition_id: "0xd1",
+      category: "Politics",
+      status: "active",
+      end_date: 10.days.from_now,
+      resolution_criteria: "Official source."
+    )
+    market.create_risk_score!(
+      score: 50,
+      level: "medium",
+      factors: {},
+      computed_at: 2.hours.ago
+    )
+
+    post "/markets/digest", params: { event_ids: [market.event_id, "missing-id"] }, as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    markets = body["markets"]
+    assert markets[market.event_id]["freshness"].present?
+    assert_equal false, markets[market.event_id]["missing"]
+    assert_equal true, markets["missing-id"]["missing"]
+  end
 end

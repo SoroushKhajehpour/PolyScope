@@ -1,10 +1,11 @@
-import type { LiquidityNote } from "@/types/market"
+import type { LiquidityNote, SimilarResolvedMarketProps } from "@/types/market"
 
 interface InsightsTabProps {
   topDrivers: string[]
   whyNotHigherRisk: string[]
   liquidity: LiquidityNote | null
   unavailableSources: string[]
+  similarResolvedMarkets: SimilarResolvedMarketProps[]
 }
 
 function SectionCard({
@@ -31,6 +32,7 @@ export default function InsightsTab({
   whyNotHigherRisk,
   liquidity,
   unavailableSources,
+  similarResolvedMarkets,
 }: InsightsTabProps) {
   const drivers = topDrivers.length > 0 ? topDrivers : null
   const mitigators = whyNotHigherRisk.length > 0 ? whyNotHigherRisk : null
@@ -84,6 +86,28 @@ export default function InsightsTab({
             </p>
           )}
         </div>
+      )}
+
+      {similarResolvedMarkets.length > 0 && (
+        <SectionCard title="Comparable markets (pattern similarity)">
+          <p className="border-b border-white/6 px-5 py-3 text-[12px] leading-relaxed text-slate-400">
+            Embedding-matched markets in the same category—not trading advice and not a price prediction.
+          </p>
+          <ul className="divide-y divide-white/6">
+            {similarResolvedMarkets.map((m) => (
+              <li key={m.event_id ?? m.event_question} className="px-5 py-3">
+                <p className="text-sm font-medium text-slate-100">{m.event_question}</p>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-slate-500">
+                  {m.similarity != null && (
+                    <span>Similarity {(m.similarity * 100).toFixed(1)}%</span>
+                  )}
+                  {m.status && <span>Status {m.status}</span>}
+                  {m.dispute_hint && <span>{m.dispute_hint}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
       )}
     </div>
   )

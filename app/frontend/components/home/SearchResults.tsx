@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react"
 import type { MarketSearchResult } from "@/types/market"
 import { formatVolume, formatEndDate } from "@/lib/utils"
+import { useWatchlist } from "@/hooks/useWatchlist"
 
 interface SearchResultsProps {
   results: MarketSearchResult[]
@@ -8,6 +9,8 @@ interface SearchResultsProps {
 }
 
 export default function SearchResults({ results, visible }: SearchResultsProps) {
+  const { toggle, isWatched } = useWatchlist()
+
   const handleClick = (result: MarketSearchResult) => {
     router.visit(`/markets/${result.event_id}`)
   }
@@ -22,10 +25,18 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
     >
       <div className="max-h-[460px] overflow-y-auto">
         {results.map((result, index) => (
-          <button
+          <div
             key={result.event_id}
+            role="button"
+            tabIndex={0}
             onClick={() => handleClick(result)}
-            className="group flex w-full items-center gap-3 border-b border-white/5 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-white/4"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                handleClick(result)
+              }
+            }}
+            className="group flex w-full cursor-pointer items-center gap-3 border-b border-white/5 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-white/4"
             style={{
               animation: visible
                 ? `fadeSlideIn 180ms ease-out ${index * 40}ms both`
@@ -52,6 +63,21 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
             <span className="flex-1 truncate text-base text-white transition-colors group-hover:text-[#F5A623]">
               {result.event_question}
             </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                toggle(result.event_id, result.event_question)
+              }}
+              className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition ${
+                isWatched(result.event_id)
+                  ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
+                  : "border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300"
+              }`}
+              aria-pressed={isWatched(result.event_id)}
+            >
+              {isWatched(result.event_id) ? "Watching" : "Watch"}
+            </button>
             {/* Category badge */}
             {result.category && (
               <span className="shrink-0 rounded bg-white/5 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-white/40">
@@ -65,7 +91,7 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
             <span className="shrink-0 text-sm text-white/30">
               {formatEndDate(result.end_date)}
             </span>
-          </button>
+          </div>
         ))}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { MarketProps, RiskScoreProps } from "@/types/market"
-import { formatVolume } from "@/lib/utils"
+import { formatScoreAsOf, formatVolume } from "@/lib/utils"
+import { useWatchlist } from "@/hooks/useWatchlist"
 import ScoreGauge from "./ScoreRing"
 
 interface MarketHeroProps {
@@ -21,6 +22,8 @@ function MetaField({ label, value }: { label: string; value: string }) {
 }
 
 export default function MarketHero({ market, riskScore }: MarketHeroProps) {
+  const { toggle, isWatched } = useWatchlist()
+
   const endDateStr = market.end_date
     ? new Date(market.end_date).toLocaleDateString("en-US", {
         month: "short",
@@ -37,7 +40,7 @@ export default function MarketHero({ market, riskScore }: MarketHeroProps) {
     <section className="rounded-md border border-white/8 bg-white/3">
       {/* Top row: identity + gauge */}
       <div className="flex items-start justify-between gap-6 p-6 sm:p-7">
-        <div className="flex min-w-0 items-start gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
           <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-white/8 bg-white/4">
             {market.event_image ? (
               <img
@@ -61,6 +64,19 @@ export default function MarketHero({ market, riskScore }: MarketHeroProps) {
             </span>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => toggle(market.event_id, market.event_question)}
+          className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+            isWatched(market.event_id)
+              ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"
+              : "border-white/12 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-200"
+          }`}
+          aria-pressed={isWatched(market.event_id)}
+        >
+          {isWatched(market.event_id) ? "Watching" : "Watch"}
+        </button>
 
         {/* Right: risk gauge */}
         <div className="hidden shrink-0 sm:block">
@@ -88,6 +104,9 @@ export default function MarketHero({ market, riskScore }: MarketHeroProps) {
         {endDateStr && <MetaField label="Expires" value={endDateStr} />}
         {market.volume != null && (
           <MetaField label="Volume" value={formatVolume(market.volume)} />
+        )}
+        {riskScore?.computed_at && (
+          <MetaField label="Score as of" value={formatScoreAsOf(riskScore.computed_at)} />
         )}
         {riskScore?.confidence_tier && (
           <MetaField

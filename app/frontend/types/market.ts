@@ -18,12 +18,6 @@ export interface MarketProps {
   resolution_criteria: string | null
 }
 
-/** Only set on MarketEvaluating — ignore stale scores from before this page load when polling */
-export interface MarketEvaluatingProps {
-  market: MarketProps
-  score_poll_after: number
-}
-
 export interface Factor {
   label: string
   score: number
@@ -48,6 +42,44 @@ export interface LiquidityNote {
   explanation: string | null
 }
 
+export type FreshnessState = "fresh" | "soft_stale" | "blocking_stale"
+
+export interface CriteriaSnapshotEntry {
+  type: "snapshot"
+  id: string
+  at: string | null
+  summary: string
+  change_type: string | null
+  edit_distance_ratio: number | null
+}
+
+export interface CriteriaClarificationEntry {
+  type: "clarification"
+  id: string
+  at: string | null
+  summary: string
+  diff_html: string | null
+}
+
+export type CriteriaTimelineEntry = CriteriaSnapshotEntry | CriteriaClarificationEntry
+
+export interface ScoreContextProps {
+  risk_score_computed_at: string | null
+  freshness: FreshnessState | null
+  stale_reason: string | null
+  blocking_display_stale: boolean
+  criteria_timeline: CriteriaTimelineEntry[]
+}
+
+export interface SimilarResolvedMarketProps {
+  event_id: string | null
+  event_question: string
+  status: string | null
+  end_date: string | null
+  similarity: number | null
+  dispute_hint: string | null
+}
+
 export interface RiskScoreProps {
   score: number
   level: string
@@ -62,4 +94,18 @@ export interface RiskScoreProps {
   resolution_criteria: ResolutionCriteria | null
   liquidity: LiquidityNote | null
   data_sources_unavailable: string[]
+  similar_resolved_markets: SimilarResolvedMarketProps[]
+}
+
+export interface DigestMarketEntry {
+  event_id: string
+  missing: boolean
+  last_snapshot_at?: string | null
+  last_clarification_at?: string | null
+  risk_score_computed_at?: string | null
+  freshness?: FreshnessState | null
+  stale_reason?: string | null
+  blocking_display_stale?: boolean
+  rules_changed_after_score?: boolean
+  score_label_outdated?: boolean
 }

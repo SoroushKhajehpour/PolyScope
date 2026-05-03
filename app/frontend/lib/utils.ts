@@ -20,3 +20,16 @@ export function formatEndDate(dateStr: string | null | undefined): string {
   if (isNaN(d.getTime())) return "—"
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
+
+export function formatScoreAsOf(iso: string | null | undefined): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}

@@ -32,6 +32,7 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
             whyNotHigherRisk={riskScore.why_not_higher_risk}
             liquidity={riskScore.liquidity}
             unavailableSources={riskScore.data_sources_unavailable}
+            similarResolvedMarkets={riskScore.similar_resolved_markets ?? []}
           />
         )
       default:

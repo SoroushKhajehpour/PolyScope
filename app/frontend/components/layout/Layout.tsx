@@ -1,4 +1,5 @@
 import { ReactNode } from "react"
+import { Link } from "@inertiajs/react"
 import StockTickerBar from "./StockTickerBar"
 
 interface LayoutProps {
@@ -10,6 +11,20 @@ export default function Layout({ children, centerContent = false }: LayoutProps)
   return (
     <div className="relative flex min-h-screen w-full max-w-full flex-col overflow-hidden bg-[#0A0E1A]">
       <header className="relative z-10 h-[90px] w-full shrink-0">
+        <nav
+          className="pointer-events-auto absolute right-4 top-3 z-30 flex gap-5 text-[12px] font-medium"
+          aria-label="Primary"
+        >
+          <Link href="/" className="text-slate-400 transition hover:text-white">
+            Home
+          </Link>
+          <Link href="/watchlist" className="text-slate-400 transition hover:text-white">
+            Watchlist
+          </Link>
+          <Link href="/methodology" className="text-slate-400 transition hover:text-white">
+            Methodology
+          </Link>
+        </nav>
         <StockTickerBar />
       </header>
 
