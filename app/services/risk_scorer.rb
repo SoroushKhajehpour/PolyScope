@@ -128,7 +128,8 @@ module RiskScorer
           explanation: explanation,
           resolution_analysis: resolution_analysis,
           confidence: confidence,
-          data_sources_unavailable: unavailable_sources
+          data_sources_unavailable: unavailable_sources,
+          similar_outcomes: similar_result[:factor_metadata] || {}
         }
       }
 
