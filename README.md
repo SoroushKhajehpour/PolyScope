@@ -71,9 +71,13 @@ npm run dev:full
 
 `npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so opening `http://localhost:3000` will show nothing useful until you also run `bin/rails server` (or use `bin/dev` / `npm run dev:full` above).
 
-**Background scoring in development** uses Rails’ **`:async`** job adapter (jobs run in-process after the HTTP response). You do **not** need Sidekiq or Redis for risk scores or the evaluating screen. Production uses Sidekiq.
+**Risk scoring behavior**
 
-**Sidekiq** is not started by `bin/dev`. Optional Sidekiq + Redis is only needed if you want the Sidekiq UI or other queues outside Active Job; start Redis, then in another terminal:
+- **Development** (default): scoring runs **inline** in the same request, so the market page returns **with a risk score** when API keys and Polymarket data are available (first load can take a while). Set **`POLYSCOPE_BACKGROUND_SCORING=1`** to use background jobs + the evaluating screen instead (Rails uses the **`:async`** job adapter in development so Sidekiq/Redis are not required for that path).
+- **Production**: scoring uses **background jobs** + the evaluating/polling flow by default (avoids HTTP timeouts). Set **`POLYSCOPE_FORCE_INLINE_SCORING=1`** only if you intentionally want synchronous scoring.
+- **Resolution text**: if Polymarket does not send separate criteria copy, the server fills a minimal criteria string from the question so scoring can run.
+
+**Sidekiq** is not started by `bin/dev`. In production, run a Sidekiq worker so queued scores complete. For optional local Sidekiq UI / Redis, start Redis, then:
 
 ```
 bundle exec sidekiq -C config/sidekiq.yml

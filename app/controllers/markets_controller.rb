@@ -36,6 +36,8 @@ class MarketsController < ApplicationController
     hydrate_market_attrs(@market)
     @market.save! if @market.new_record? || @market.changed?
     reload_market_with_associations
+    backfill_resolution_criteria_if_missing(@market)
+    reload_market_with_associations
 
     @risk_score = @market.risk_score
     if insufficient_market_data?(@market)
@@ -278,8 +280,9 @@ class MarketsController < ApplicationController
     RiskScoreCalculationJob.perform_later(market.id, session_key: session_key)
   end
 
+  # Question is required; criteria may be missing from Gamma — backfill before scoring.
   def insufficient_market_data?(market)
-    market.event_question.to_s.strip.empty? || market.resolution_criteria.to_s.strip.empty?
+    market.event_question.to_s.strip.empty?
   end
 
   def process_scoring_inline(market)
@@ -291,9 +294,28 @@ class MarketsController < ApplicationController
     Rails.logger.warn("[MarketsController] inline scoring failed: #{e.class}: #{e.message}")
   end
 
-  # Use perform_later + MarketEvaluating unless developers force synchronous scoring (heavy request).
+  # Development: default inline scoring so the first response includes MarketShow + risk score when APIs succeed.
+  # Production: default background jobs + MarketEvaluating to avoid HTTP timeouts on long LLM runs.
+  # Tests: default background (enqueue assertions) unless POLYSCOPE_FORCE_INLINE_SCORING.
   def prefer_background_scoring?
-    !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
+    if Rails.env.test?
+      !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
+    elsif Rails.env.development?
+      truthy_env?(ENV["POLYSCOPE_BACKGROUND_SCORING"])
+    else
+      !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
+    end
+  end
+
+  def backfill_resolution_criteria_if_missing(market)
+    return unless market&.persisted?
+
+    return if market.resolution_criteria.to_s.strip.present?
+
+    q = market.event_question.to_s.strip
+    return if q.blank?
+
+    market.update!(resolution_criteria: "Polymarket published resolution rules for this event apply. #{q}")
   end
 
   def truthy_env?(value)
