@@ -71,7 +71,7 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_includes response.body, "Evaluating Risk"
+    assert_match(/MarketEvaluating/, response.body)
   end
 
   test "show renders result directly when score is fresh" do
@@ -152,7 +152,7 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Risk Level"
     assert_includes response.body, "Score: 55"
-    refute_includes response.body, "Evaluating Risk"
+    refute_match(/MarketEvaluating/, response.body)
   end
 
   test "show treats score as stale when clarification is newer than computed_at" do
@@ -199,7 +199,7 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_includes response.body, "Evaluating Risk"
+    assert_match(/MarketEvaluating/, response.body)
   end
 
   test "digest returns freshness payload for known events" do

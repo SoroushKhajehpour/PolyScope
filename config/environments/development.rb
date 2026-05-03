@@ -3,6 +3,10 @@ require "active_support/core_ext/integer/time"
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
+  # Run jobs in-process after the HTTP response (no Redis/Sidekiq required). Lets MarketEvaluating +
+  # polling work in dev; production still uses Sidekiq from config/application.rb.
+  config.active_job.queue_adapter = :async
+
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 

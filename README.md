@@ -71,7 +71,9 @@ npm run dev:full
 
 `npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so opening `http://localhost:3000` will show nothing useful until you also run `bin/rails server` (or use `bin/dev` / `npm run dev:full` above).
 
-**Sidekiq** is not started by `bin/dev`. Without it, scoring still works via the server’s inline fallback; for throughput and background jobs, start Redis, then in another terminal:
+**Background scoring in development** uses Rails’ **`:async`** job adapter (jobs run in-process after the HTTP response). You do **not** need Sidekiq or Redis for risk scores or the evaluating screen. Production uses Sidekiq.
+
+**Sidekiq** is not started by `bin/dev`. Optional Sidekiq + Redis is only needed if you want the Sidekiq UI or other queues outside Active Job; start Redis, then in another terminal:
 
 ```
 bundle exec sidekiq -C config/sidekiq.yml

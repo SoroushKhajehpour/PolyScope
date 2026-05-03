@@ -46,8 +46,10 @@ class MarketsController < ApplicationController
 
     if MarketFreshness.score_fresh?(@market)
       render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
-    elsif @risk_score.blank?
-      if sidekiq_available?
+    elsif @risk_score.blank? || MarketFreshness.blocking_display_stale?(@market)
+      # Without Sidekiq we still enqueue: development uses `async` Active Job so the response returns
+      # immediately and MarketEvaluating + polling work. Inline scoring only when forced (tests/debug).
+      if prefer_background_scoring?
         enqueue_supporting_jobs(@market)
         render inertia: "MarketEvaluating", props: evaluating_props(@market)
       else
@@ -56,23 +58,15 @@ class MarketsController < ApplicationController
         @risk_score = @market.risk_score
         render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
       end
-    elsif MarketFreshness.blocking_display_stale?(@market)
-      if sidekiq_available?
-        enqueue_supporting_jobs(@market)
-        render inertia: "MarketEvaluating", props: evaluating_props(@market)
-      else
-        process_scoring_inline(@market)
-        reload_market_with_associations
-        @risk_score = @market.risk_score
-        render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
-      end
-    elsif sidekiq_available?
-      enqueue_supporting_jobs(@market)
-      render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
     else
-      process_scoring_inline(@market)
-      reload_market_with_associations
-      @risk_score = @market.risk_score
+      # Soft stale: show current score while a refresh runs in the background (or inline when forced).
+      if prefer_background_scoring?
+        enqueue_supporting_jobs(@market)
+      else
+        process_scoring_inline(@market)
+        reload_market_with_associations
+        @risk_score = @market.risk_score
+      end
       render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
     end
   rescue Faraday::Error => e
@@ -297,14 +291,9 @@ class MarketsController < ApplicationController
     Rails.logger.warn("[MarketsController] inline scoring failed: #{e.class}: #{e.message}")
   end
 
-  def sidekiq_available?
-    return false if truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
-
-    Sidekiq::ProcessSet.new.any? do |process|
-      process["beat"].present? && Time.at(process["beat"].to_f) > 30.seconds.ago
-    end
-  rescue StandardError
-    false
+  # Use perform_later + MarketEvaluating unless developers force synchronous scoring (heavy request).
+  def prefer_background_scoring?
+    !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
   end
 
   def truthy_env?(value)
