@@ -104,10 +104,6 @@ class MarketsController < ApplicationController
     render json: serialize_risk_score(risk_score).merge(pending: false)
   end
 
-  def methodology
-    render inertia: "Methodology"
-  end
-
   def watchlist
     render inertia: "Watchlist"
   end
@@ -204,8 +200,7 @@ class MarketsController < ApplicationController
 
   def evaluating_props(market)
     {
-      market: serialize_market(market),
-      score_context: serialize_score_context(market)
+      market: serialize_market(market)
     }
   end
 

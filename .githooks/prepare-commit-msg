@@ -1,0 +1,12 @@
+#!/bin/sh
+# Remove Co-authored-by trailers from the commit message file (optional local toggle).
+# Enable: git config core.hooksPath .githooks
+
+COMMIT_MSG_FILE=$1
+[ -z "$COMMIT_MSG_FILE" ] || [ ! -f "$COMMIT_MSG_FILE" ] && exit 0
+
+if grep -qi '^Co-authored-by:' "$COMMIT_MSG_FILE" 2>/dev/null; then
+  grep -vi '^Co-authored-by:' "$COMMIT_MSG_FILE" > "${COMMIT_MSG_FILE}.strip.$$" \
+    && mv "${COMMIT_MSG_FILE}.strip.$$" "$COMMIT_MSG_FILE"
+fi
+exit 0

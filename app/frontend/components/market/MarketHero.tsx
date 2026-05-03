@@ -67,7 +67,7 @@ export default function MarketHero({ market, riskScore }: MarketHeroProps) {
 
         <button
           type="button"
-          onClick={() => toggle(market.event_id, market.event_question)}
+          onClick={() => toggle(market.event_id, market.event_question, market.event_image)}
           className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
             isWatched(market.event_id)
               ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200"

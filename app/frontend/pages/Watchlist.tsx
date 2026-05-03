@@ -36,7 +36,7 @@ export default function Watchlist() {
 
   return (
     <Layout centerContent>
-      <div className="mx-auto w-full max-w-2xl py-10">
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link
             href="/"
@@ -44,31 +44,53 @@ export default function Watchlist() {
           >
             ← Home
           </Link>
-          <h1 className="text-lg font-semibold text-white">Watchlist</h1>
-          <span className="w-16" aria-hidden />
+          <h1 className="text-lg font-semibold tracking-tight text-white">Watchlist</h1>
+          <span className="w-14 sm:w-16" aria-hidden />
         </div>
 
         {items.length === 0 ? (
-          <p className="rounded-md border border-white/8 bg-white/3 px-4 py-6 text-sm text-slate-400">
+          <p className="rounded-lg border border-white/8 bg-white/[0.03] px-5 py-8 text-center text-sm leading-relaxed text-slate-400">
             Save markets from search or a market page. Stored only in this browser (up to 50).
           </p>
         ) : (
-          <ul className="divide-y divide-white/8 rounded-md border border-white/8 bg-white/3">
-            {rows.map(({ event_id, title, digest }) => {
+          <ul className="flex flex-col gap-3">
+            {rows.map(({ event_id, title, event_image, digest }) => {
               const b = digest ? badgeFor(digest) : null
               return (
-                <li key={event_id} className="flex items-center gap-3 px-4 py-3">
+                <li
+                  key={event_id}
+                  className="flex items-stretch gap-4 rounded-lg border border-white/8 bg-white/[0.03] p-3 transition hover:border-white/12 sm:p-4"
+                >
                   <button
                     type="button"
                     onClick={() => router.visit(`/markets/${event_id}`)}
-                    className="min-w-0 flex-1 truncate text-left text-sm font-medium text-white transition hover:text-[#F5A623]"
+                    className="flex min-w-0 flex-1 items-center gap-4 text-left"
                   >
-                    {title}
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                      {event_image ? (
+                        <img
+                          src={event_image}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-medium uppercase tracking-wider text-slate-600">
+                          —
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 py-0.5">
+                      <p className="line-clamp-2 text-sm font-medium leading-snug text-white sm:text-[15px]">
+                        {title}
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-slate-500">{event_id}</p>
+                    </div>
                   </button>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-col items-end justify-center gap-2 sm:flex-row sm:items-center">
                     {b && (
                       <span
-                        className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${b.className}`}
+                        className={`whitespace-nowrap rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${b.className}`}
                       >
                         {b.label}
                       </span>
@@ -76,7 +98,7 @@ export default function Watchlist() {
                     <button
                       type="button"
                       onClick={() => remove(event_id)}
-                      className="rounded border border-white/10 px-2 py-1 text-[11px] text-slate-400 transition hover:border-white/20 hover:text-slate-200"
+                      className="rounded-md border border-white/10 px-2.5 py-1.5 text-[11px] text-slate-400 transition hover:border-white/20 hover:text-slate-200"
                     >
                       Remove
                     </button>

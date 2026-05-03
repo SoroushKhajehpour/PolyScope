@@ -21,9 +21,6 @@ export default function Layout({ children, centerContent = false }: LayoutProps)
           <Link href="/watchlist" className="text-slate-400 transition hover:text-white">
             Watchlist
           </Link>
-          <Link href="/methodology" className="text-slate-400 transition hover:text-white">
-            Methodology
-          </Link>
         </nav>
         <StockTickerBar />
       </header>

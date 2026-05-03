@@ -12,7 +12,6 @@ Rails.application.routes.draw do
 
   root "markets#index"
 
-  get "/methodology", to: "markets#methodology"
   get "/watchlist", to: "markets#watchlist"
 
   resources :markets, only: [:show], param: :event_id do

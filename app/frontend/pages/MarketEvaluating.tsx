@@ -1,20 +1,16 @@
 import Layout from "@/components/layout/Layout"
-import CriteriaTimeline from "@/components/market/CriteriaTimeline"
 import EvaluatingCard from "@/components/market/EvaluatingCard"
 import { useScorePolling } from "@/hooks/useScorePolling"
 import { useActionCableScore } from "@/hooks/useActionCableScore"
-import type { MarketProps, ScoreContextProps } from "@/types/market"
+import type { MarketProps } from "@/types/market"
 
 interface Props {
   market: MarketProps
-  score_context?: ScoreContextProps
 }
 
-export default function MarketEvaluating({ market, score_context }: Props) {
+export default function MarketEvaluating({ market }: Props) {
   useScorePolling(market.event_id)
   useActionCableScore(market.id, market.event_id)
-
-  const timeline = score_context?.criteria_timeline ?? []
 
   return (
     <Layout>
@@ -26,11 +22,8 @@ export default function MarketEvaluating({ market, score_context }: Props) {
           backgroundSize: "24px 24px",
         }}
       >
-        <div className="w-full max-w-lg space-y-8">
+        <div className="w-full max-w-lg">
           <EvaluatingCard market={market} />
-          {timeline.length > 0 && (
-            <CriteriaTimeline entries={timeline} />
-          )}
         </div>
       </div>
     </Layout>

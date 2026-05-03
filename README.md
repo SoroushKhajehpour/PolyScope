@@ -61,6 +61,12 @@ OPENAI_API_KEY=...
 bin/dev
 ```
 
+Optional: strip `Co-authored-by:` lines from commits (e.g. IDE-added trailers):
+
+```
+git config core.hooksPath .githooks
+```
+
 This starts the Rails server, Vite dev server, and Sidekiq via Foreman.
 
 To seed market data:

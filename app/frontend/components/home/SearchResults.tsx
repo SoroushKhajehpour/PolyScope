@@ -67,7 +67,7 @@ export default function SearchResults({ results, visible }: SearchResultsProps) 
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                toggle(result.event_id, result.event_question)
+                toggle(result.event_id, result.event_question, result.event_image)
               }}
               className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition ${
                 isWatched(result.event_id)

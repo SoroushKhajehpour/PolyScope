@@ -7,6 +7,8 @@ const MAX_ITEMS = 50
 export interface WatchedMarket {
   event_id: string
   title: string
+  /** Polymarket event image URL when known */
+  event_image: string | null
 }
 
 function migrateLegacy(): WatchedMarket[] {
@@ -20,7 +22,7 @@ function migrateLegacy(): WatchedMarket[] {
       .map(String)
       .filter(Boolean)
       .slice(0, MAX_ITEMS)
-      .map((event_id) => ({ event_id, title: event_id }))
+      .map((event_id) => ({ event_id, title: event_id, event_image: null }))
     window.localStorage.removeItem(LEGACY_IDS)
     return items
   } catch {
@@ -42,10 +44,15 @@ function readItems(): WatchedMarket[] {
     return parsed
       .map((row) => {
         if (row && typeof row === "object" && "event_id" in row) {
-          const r = row as { event_id?: string; title?: string }
+          const r = row as { event_id?: string; title?: string; event_image?: string | null }
           const id = String(r.event_id ?? "").trim()
           if (!id) return null
-          return { event_id: id, title: String(r.title ?? id).trim() || id }
+          const img = r.event_image
+          return {
+            event_id: id,
+            title: String(r.title ?? id).trim() || id,
+            event_image: img != null && String(img).trim() !== "" ? String(img) : null,
+          }
         }
         return null
       })
@@ -69,12 +76,13 @@ export function useWatchlist() {
 
   const ids = useMemo(() => items.map((x) => x.event_id), [items])
 
-  const add = useCallback((eventId: string, title?: string) => {
+  const add = useCallback((eventId: string, title?: string, event_image?: string | null) => {
     if (!eventId) return
     const label = (title ?? eventId).trim() || eventId
+    const img = event_image != null && String(event_image).trim() !== "" ? String(event_image) : null
     setItems((prev) => {
       const rest = prev.filter((x) => x.event_id !== eventId)
-      const next = [{ event_id: eventId, title: label }, ...rest].slice(0, MAX_ITEMS)
+      const next = [{ event_id: eventId, title: label, event_image: img }, ...rest].slice(0, MAX_ITEMS)
       writeItems(next)
       return next
     })
@@ -88,15 +96,17 @@ export function useWatchlist() {
     })
   }, [])
 
-  const toggle = useCallback((eventId: string, title?: string) => {
+  const toggle = useCallback((eventId: string, title?: string, event_image?: string | null) => {
     setItems((prev) => {
       const has = prev.some((x) => x.event_id === eventId)
-      const next = has
-        ? prev.filter((x) => x.event_id !== eventId)
-        : [{ event_id: eventId, title: (title ?? eventId).trim() || eventId }, ...prev].slice(
-            0,
-            MAX_ITEMS
-          )
+      if (has) {
+        const next = prev.filter((x) => x.event_id !== eventId)
+        writeItems(next)
+        return next
+      }
+      const label = (title ?? eventId).trim() || eventId
+      const img = event_image != null && String(event_image).trim() !== "" ? String(event_image) : null
+      const next = [{ event_id: eventId, title: label, event_image: img }, ...prev].slice(0, MAX_ITEMS)
       writeItems(next)
       return next
     })
