@@ -55,4 +55,12 @@ class MarketFreshnessTest < ActiveSupport::TestCase
     assert_equal MarketFreshness::BLOCKING_STALE, s[:freshness]
     assert_includes s[:stale_reason].to_s.downcase, "resolution"
   end
+
+  test "timeline sort does not raise on blank timestamps" do
+    t = MarketFreshness.send(:timeline_entry_timestamp, { at: nil })
+    assert_kind_of Time, t
+
+    t2 = MarketFreshness.send(:timeline_entry_timestamp, { "at" => "not-a-date" })
+    assert_kind_of Time, t2
+  end
 end

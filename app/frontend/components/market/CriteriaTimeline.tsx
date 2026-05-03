@@ -21,10 +21,15 @@ function labelFor(e: CriteriaTimelineEntry): string {
   return "Clarification"
 }
 
-export default function CriteriaTimeline({ entries }: { entries: CriteriaTimelineEntry[] }) {
+export default function CriteriaTimeline({
+  entries = [],
+}: {
+  entries?: CriteriaTimelineEntry[] | null
+}) {
   const [openId, setOpenId] = useState<string | null>(null)
+  const safe = entries ?? []
 
-  if (entries.length === 0) {
+  if (safe.length === 0) {
     return (
       <div className="rounded-md border border-white/8 bg-white/3 px-4 py-3 text-sm text-slate-500">
         No stored criteria changes yet. Snapshots and clarifications appear here when we detect
@@ -44,7 +49,7 @@ export default function CriteriaTimeline({ entries }: { entries: CriteriaTimelin
         </p>
       </div>
       <ul className="divide-y divide-white/6">
-        {entries.map((e) => {
+        {safe.map((e) => {
           const isOpen = openId === e.id
           return (
             <li key={e.id}>

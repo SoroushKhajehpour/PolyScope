@@ -35,10 +35,19 @@ class MarketFreshness
         entries << clarification_entry(c)
       end
 
-      entries.sort_by { |e| Time.iso8601(e[:at]) }.reverse.first(max_items)
+      entries.sort_by { |e| timeline_entry_timestamp(e) }.reverse.first(max_items)
     end
 
     private
+
+    def timeline_entry_timestamp(entry)
+      raw = entry[:at].presence || entry["at"].presence
+      return Time.zone.at(0) if raw.blank?
+
+      Time.iso8601(raw)
+    rescue ArgumentError, TypeError
+      Time.zone.at(0)
+    end
 
     def snapshot_entry(s)
       text = s.description_text.to_s

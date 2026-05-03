@@ -22,16 +22,16 @@ export default function MarketAnalysisTabs({ riskScore }: MarketAnalysisTabsProp
   const content = useMemo(() => {
     switch (activeTab) {
       case "resolution":
-        return <ResolutionTab criteria={riskScore.resolution_criteria} />
+        return <ResolutionTab criteria={riskScore.resolution_criteria ?? null} />
       case "risk_factors":
-        return <RiskFactorsTab factors={riskScore.factors} />
+        return <RiskFactorsTab factors={riskScore.factors ?? []} />
       case "insights":
         return (
           <InsightsTab
-            topDrivers={riskScore.top_risk_drivers}
-            whyNotHigherRisk={riskScore.why_not_higher_risk}
-            liquidity={riskScore.liquidity}
-            unavailableSources={riskScore.data_sources_unavailable}
+            topDrivers={riskScore.top_risk_drivers ?? []}
+            whyNotHigherRisk={riskScore.why_not_higher_risk ?? []}
+            liquidity={riskScore.liquidity ?? null}
+            unavailableSources={riskScore.data_sources_unavailable ?? []}
             similarResolvedMarkets={riskScore.similar_resolved_markets ?? []}
           />
         )

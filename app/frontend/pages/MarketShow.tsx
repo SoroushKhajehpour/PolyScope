@@ -14,8 +14,10 @@ interface Props {
 }
 
 export default function MarketShow({ market, risk_score, score_context }: Props) {
+  const timeline = score_context?.criteria_timeline ?? []
+
   const showStaleBanner =
-    Boolean(score_context.freshness && score_context.freshness !== "fresh" && score_context.stale_reason)
+    Boolean(score_context?.freshness && score_context.freshness !== "fresh" && score_context.stale_reason)
 
   return (
     <Layout centerContent>
@@ -39,7 +41,7 @@ export default function MarketShow({ market, risk_score, score_context }: Props)
           Back
         </button>
 
-        {showStaleBanner && score_context.stale_reason && score_context.freshness && (
+        {showStaleBanner && score_context?.stale_reason && score_context?.freshness && (
           <div className="mb-6">
             <ScoreFreshnessBanner freshness={score_context.freshness} message={score_context.stale_reason} />
           </div>
@@ -49,7 +51,7 @@ export default function MarketShow({ market, risk_score, score_context }: Props)
           <div className="space-y-6">
             <MarketHero market={market} riskScore={risk_score} />
             <MarketSummaryCard riskScore={risk_score} />
-            <CriteriaTimeline entries={score_context.criteria_timeline} />
+            <CriteriaTimeline entries={timeline} />
             <MarketAnalysisTabs riskScore={risk_score} />
           </div>
         ) : (
@@ -58,7 +60,7 @@ export default function MarketShow({ market, risk_score, score_context }: Props)
             <div className="rounded-md border border-white/8 bg-white/3 p-6">
               <p className="text-sm text-slate-300">Risk score is not available for this market yet.</p>
             </div>
-            <CriteriaTimeline entries={score_context.criteria_timeline} />
+            <CriteriaTimeline entries={timeline} />
           </div>
         )}
       </div>
