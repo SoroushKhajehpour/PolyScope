@@ -146,7 +146,7 @@ module RiskScorer
       explanation = {
         summary: "Provisional risk estimate. Full analysis did not complete.",
         confidenceNote: err.truncate(500),
-        confidenceExplanation: "Set ANTHROPIC_API_KEY (Claude) and OPENAI_API_KEY (embeddings) on the server, then reload. Check logs for details.",
+        confidenceExplanation: "Set ANTHROPIC_API_KEY (Claude) for full analysis. OPENAI_API_KEY is optional (similar-market embeddings only). Check logs for details.",
         factors: [],
         topRiskDrivers: ["Automated analysis failed or returned no score."],
         whyNotHigherRisk: [],
@@ -184,8 +184,8 @@ module RiskScorer
           scoring_error: err.truncate(500),
           resolution_analysis: resolution_analysis,
           explanation: explanation,
-          confidence: { tier: "low", missing_sources: ["anthropic", "openai"] },
-          data_sources_unavailable: %w[anthropic openai],
+          confidence: { tier: "low", missing_sources: ["full_analysis"] },
+          data_sources_unavailable: %w[anthropic],
           similar_outcomes: {}
         }
       }
@@ -387,18 +387,33 @@ module RiskScorer
         :low
       end
 
-      missing_sources = []
-      missing_sources << "AI refinement" unless data_availability[:llm_available]
-      missing_sources << "similar markets analysis" unless data_availability[:embeddings_available]
-      missing_sources << "resolution criteria" if data_availability[:resolution_criteria].to_s.strip.empty?
+      # Tier degradation: LLM + resolution text only. Embeddings (OpenAI) are optional — similar-market
+      # factor still contributes via type/dispute paths without vectors.
+      degrade_reasons = []
+      degrade_reasons << "AI refinement" unless data_availability[:llm_available]
+      degrade_reasons << "resolution criteria" if data_availability[:resolution_criteria].to_s.strip.empty?
 
-      degraded = case missing_sources.length
+      embedding_note = nil
+      unless data_availability[:embeddings_available]
+        embedding_note = "similar markets analysis (optional — add OPENAI_API_KEY for embedding similarity)"
+      end
+
+      missing_sources = degrade_reasons.dup
+      missing_sources << embedding_note if embedding_note
+
+      degraded = case degrade_reasons.length
       when 0 then base_tier
       when 1 then degrade_once(base_tier)
       else :low
       end
 
-      note = missing_sources.any? ? "Confidence reduced: #{missing_sources.join(', ')} unavailable." : nil
+      note = if degrade_reasons.any? && embedding_note
+        "Confidence reduced: #{degrade_reasons.join(', ')} unavailable. Similar-market embeddings optional (OPENAI_API_KEY)."
+      elsif degrade_reasons.any?
+        "Confidence reduced: #{degrade_reasons.join(', ')} unavailable."
+      elsif embedding_note
+        "Similar-market embeddings not used (OPENAI_API_KEY optional); Claude-only scoring applies."
+      end
       if data_availability[:market_type_confidence].to_s.upcase == "LOW"
         low_conf_note = "Market type was difficult to classify - risk score leans more heavily on resolution criteria text analysis."
         note = [note, low_conf_note].compact.join(" ")

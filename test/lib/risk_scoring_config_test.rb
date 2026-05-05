@@ -47,6 +47,20 @@ class RiskScoringConfigTest < ActiveSupport::TestCase
     assert_includes sources, "OpenStreetMap"
   end
 
+  test "known_manipulated_sources tolerates scalar string from yaml merge" do
+    merged = RiskScoringConfig.config.merge(known_manipulated_sources: "Wikipedia")
+    RiskScoringConfig.stub(:config, merged) do
+      assert_equal ["Wikipedia"], RiskScoringConfig.known_manipulated_sources
+    end
+  end
+
+  test "known_manipulated_sources tolerates nil" do
+    merged = RiskScoringConfig.config.except(:known_manipulated_sources)
+    RiskScoringConfig.stub(:config, merged) do
+      assert_equal [], RiskScoringConfig.known_manipulated_sources
+    end
+  end
+
   test "convenience gate accessors return expected values" do
     assert_equal 70, RiskScoringConfig.manipulation_floor_threshold
     assert_equal 65, RiskScoringConfig.manipulation_floor

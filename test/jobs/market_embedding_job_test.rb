@@ -54,7 +54,7 @@ class MarketEmbeddingJobTest < ActiveSupport::TestCase
     market.create_market_embedding!(
       embedded_text_hash: Digest::SHA256.hexdigest("Same text."),
       embedding_model: "text-embedding-3-large",
-      embedding_vector: Pgvector::Vector.new([0.0] * 3072)
+      embedding_vector: Pgvector.encode([0.0] * 3072)
     )
     embed_called = []
     stub_client = Object.new
@@ -63,5 +63,29 @@ class MarketEmbeddingJobTest < ActiveSupport::TestCase
     MarketEmbeddingJob.perform_now(market.id, embedding_client: stub_client)
 
     assert_empty embed_called
+  end
+
+  test "perform re-embeds when hash matches but vector is missing" do
+    market = Market.create!(
+      event_id: "e4",
+      event_question: "Q4?",
+      condition_id: "0x4",
+      category: "Sci",
+      status: "active",
+      resolution_criteria: "Same text."
+    )
+    market.create_market_embedding!(
+      embedded_text_hash: Digest::SHA256.hexdigest("Same text."),
+      embedding_model: "text-embedding-3-large",
+      embedding_vector: Pgvector.encode([0.0] * 3072)
+    )
+    market.market_embedding.update_column(:embedding_vector, nil)
+    vector = [0.1] * 3072
+    stub_client = Object.new
+    stub_client.define_singleton_method(:embed) { |text, session_key: nil| vector }
+
+    MarketEmbeddingJob.perform_now(market.id, embedding_client: stub_client)
+
+    assert market.reload.market_embedding.embedding_vector.present?
   end
 end

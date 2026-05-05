@@ -40,5 +40,20 @@ module RiskScorer
       assert rel.is_a?(ActiveRecord::Relation)
       assert_empty rel.to_a
     end
+
+    test "nearest_same_category accepts Pgvector.encode string (AR unknown OID loads vector as String)" do
+      literal = Pgvector.encode([0.1] * 3072)
+      rel = MarketEmbedding.nearest_same_category(literal, exclude_market_id: 0, category: "Politics", limit: 5, max_distance: 0.5)
+      assert rel.is_a?(ActiveRecord::Relation)
+      assert_empty rel.to_a
+    end
+
+    test "embedding_numeric_components parses encode string to 3072 floats" do
+      literal = Pgvector.encode([0.25, -0.5] + [0.0] * 3070)
+      arr = MarketEmbedding.embedding_numeric_components(literal)
+      assert_equal 3072, arr.size
+      assert_in_delta 0.25, arr[0], 1e-6
+      assert_in_delta(-0.5, arr[1], 1e-6)
+    end
   end
 end

@@ -25,26 +25,27 @@ class MarketEmbeddingJob < ApplicationJob
     text_hash = Digest::SHA256.hexdigest(text)
     existing = market.market_embedding
 
-    if existing && existing.embedded_text_hash == text_hash
+    if existing && existing.embedded_text_hash == text_hash && existing.embedding_vector.present?
       return
     end
 
     vector = client.embed(text, session_key: session_key)
     return unless vector.is_a?(Array) && vector.any?
 
-    embedding_vector = Pgvector::Vector.new(vector)
+    # String form (e.g. "[0.1,0.2,...]") — Rails 8 bind quoting does not handle Pgvector::Vector on INSERT.
+    embedding_literal = Pgvector.encode(vector)
 
     if existing
       existing.update!(
         embedded_text_hash: text_hash,
         embedding_model: EmbeddingClient::DEFAULT_MODEL,
-        embedding_vector: embedding_vector
+        embedding_vector: embedding_literal
       )
     else
       market.create_market_embedding!(
         embedded_text_hash: text_hash,
         embedding_model: EmbeddingClient::DEFAULT_MODEL,
-        embedding_vector: embedding_vector
+        embedding_vector: embedding_literal
       )
     end
   end

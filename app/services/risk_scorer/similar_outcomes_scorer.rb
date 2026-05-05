@@ -96,8 +96,8 @@ module RiskScorer
       end
 
       def cosine_similarity(vec_a, vec_b)
-        a = vec_a.respond_to?(:to_a) ? vec_a.to_a : vec_a
-        b = vec_b.respond_to?(:to_a) ? vec_b.to_a : vec_b
+        a = MarketEmbedding.embedding_numeric_components(vec_a)
+        b = MarketEmbedding.embedding_numeric_components(vec_b)
         return 0.0 if a.size != b.size || a.empty?
 
         dot = a.zip(b).sum { |x, y| x.to_f * y.to_f }

@@ -6,9 +6,32 @@ class MarketFreshness
   SOFT_STALE = "soft_stale"
   BLOCKING_STALE = "blocking_stale"
 
+  # True when the persisted row is the post-crash provisional score (used by HTML freshness + score_result polling).
+  def self.provisional_scoring_failure_for_risk_score?(risk_score)
+    return false unless risk_score
+
+    return true if risk_score.override_gate_applied.to_s == "error_fallback"
+
+    metadata = risk_score.factor_metadata
+    return false unless metadata.is_a?(Hash)
+
+    return true if metadata["scoring_fallback"] == true || metadata[:scoring_fallback] == true
+
+    resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
+    return false unless resolution.is_a?(Hash)
+
+    resolution["fallback_reason"].to_s == "scoring_error" || resolution[:fallback_reason].to_s == "scoring_error"
+  end
+
   class << self
     def blocking_display_stale?(market)
       new(market).blocking_display_stale?
+    end
+
+    # True when we may skip invoking RiskScorer: non-provisional score newer than 4 hours and no
+    # clarifications after that score. Combined with #score_fresh? for UI freshness in #summary.
+    def scoring_cache_valid?(market)
+      new(market).scoring_cache_valid?
     end
 
     def score_fresh?(market)
@@ -56,6 +79,7 @@ class MarketFreshness
         id: "snapshot-#{s.id}",
         at: s.snapshot_at&.iso8601,
         summary: truncate_summary(text),
+        full_text: text,
         change_type: s.detected_change_type,
         edit_distance_ratio: s.edit_distance_ratio&.to_f
       }
@@ -69,6 +93,7 @@ class MarketFreshness
         id: "clarification-#{c.id}",
         at: at_time&.iso8601,
         summary: truncate_summary(c.new_text.to_s),
+        full_text: c.new_text.to_s,
         diff_html: truncate_html(diff)
       }
     end
@@ -100,15 +125,17 @@ class MarketFreshness
       return true
     end
 
-    metadata = score.factor_metadata
-    if metadata.is_a?(Hash)
-      resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
-      if resolution.is_a?(Hash) && (resolution["from_fallback"] == true || resolution[:from_fallback] == true)
-        return true if LlmClient.new.configured?
-      end
-    end
-
     false
+  end
+
+  def scoring_cache_valid?
+    score = @market.risk_score
+    return false unless score&.computed_at.present?
+    return false unless score.computed_at > 4.hours.ago
+    return false if MarketFreshness.provisional_scoring_failure_for_risk_score?(score)
+    return false if @market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
+
+    true
   end
 
   def score_fresh?
@@ -116,15 +143,9 @@ class MarketFreshness
     return false unless score&.computed_at.present?
     return false unless score.computed_at > 4.hours.ago
     return false if @market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
-    return false if @market.end_date.present? && @market.end_date <= 24.hours.from_now
+    return false if market_end_within_24h?
 
-    metadata = score.factor_metadata
-    if metadata.is_a?(Hash)
-      resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
-      if resolution.is_a?(Hash) && (resolution["from_fallback"] == true || resolution[:from_fallback] == true)
-        return false if LlmClient.new.configured?
-      end
-    end
+    return false if provisional_scoring_failure? && LlmClient.new.configured?
 
     true
   end
@@ -145,7 +166,7 @@ class MarketFreshness
     blocking = blocking_display_stale?
     freshness = if blocking
       BLOCKING_STALE
-    elsif score_fresh?
+    elsif scoring_cache_valid? || score_fresh?
       FRESH
     else
       SOFT_STALE
@@ -161,6 +182,20 @@ class MarketFreshness
 
   private
 
+  # True only when the market has a future end time in the next 24 hours (past dates are ignored).
+  def market_end_within_24h?
+    return false unless @market.end_date.present?
+
+    ends = @market.end_date
+    return false if ends <= Time.current
+
+    ends <= 24.hours.from_now
+  end
+
+  def provisional_scoring_failure?
+    MarketFreshness.provisional_scoring_failure_for_risk_score?(@market.risk_score)
+  end
+
   def stale_reason(blocking:)
     score = @market.risk_score
     return nil unless score&.computed_at.present?
@@ -169,25 +204,12 @@ class MarketFreshness
       if @market.clarifications.where("clarifications.created_at > ?", score.computed_at).exists?
         return "Resolution text changed after this score was computed."
       end
-
-      metadata = score.factor_metadata
-      if metadata.is_a?(Hash)
-        resolution = metadata["resolution_analysis"] || metadata[:resolution_analysis]
-        if resolution.is_a?(Hash) && (resolution["from_fallback"] == true || resolution[:from_fallback] == true) && LlmClient.new.configured?
-          return "Full analysis did not run last time; refresh recommended."
-        end
-      end
-
-      return "Score may not reflect current rules."
     end
 
-    return nil if score_fresh?
+    return nil if scoring_cache_valid? || score_fresh?
 
     reasons = []
-    if score.computed_at <= 4.hours.ago
-      reasons << "Score is older than four hours."
-    end
-    if @market.end_date.present? && @market.end_date <= 24.hours.from_now
+    if market_end_within_24h?
       reasons << "Market closes within 24 hours."
     end
 

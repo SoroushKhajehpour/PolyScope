@@ -5,7 +5,7 @@ function isMarketSearchResults(data: unknown): data is MarketSearchResult[] {
   return Array.isArray(data)
 }
 
-export function useLiveSearch(query: string, debounceMs = 400) {
+export function useLiveSearch(query: string, debounceMs = 380) {
   const [results, setResults] = useState<MarketSearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const nonceRef = useRef(0)

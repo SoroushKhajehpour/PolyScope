@@ -199,7 +199,9 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_match(/MarketEvaluating/, response.body)
+    assert_includes response.body, "Risk Level"
+    assert_includes response.body, "Score: 40"
+    refute_match(/MarketEvaluating/, response.body)
   end
 
   test "digest returns freshness payload for known events" do
@@ -227,5 +229,121 @@ class MarketsControllerTest < ActionDispatch::IntegrationTest
     assert markets[market.event_id]["freshness"].present?
     assert_equal false, markets[market.event_id]["missing"]
     assert_equal true, markets["missing-id"]["missing"]
+  end
+
+  test "score_result returns json for provisional fallback row so polling can exit evaluating" do
+    market = Market.create!(
+      event_id: "e-score-poll-prov",
+      event_question: "Q?",
+      condition_id: "0xsp1",
+      category: "Politics",
+      status: "active",
+      end_date: 10.days.from_now,
+      resolution_criteria: "Official source."
+    )
+    market.create_risk_score!(
+      score: 50,
+      level: "medium",
+      factors: {},
+      computed_at: 30.minutes.ago,
+      confidence_tier: "low",
+      override_gate_applied: "error_fallback",
+      factor_metadata: {
+        "scoring_fallback" => true,
+        "resolution_analysis" => { "from_fallback" => true, "fallback_reason" => "scoring_error" }
+      }
+    )
+
+    get "/markets/#{market.event_id}/score_result", as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal false, body["pending"]
+    assert_equal 50, body["score"]
+    assert_equal true, body["scoring_fallback"]
+  end
+
+  test "score_result returns score when stored score is not provisional" do
+    market = Market.create!(
+      event_id: "e-score-poll-ok",
+      event_question: "Q?",
+      condition_id: "0xsp2",
+      category: "Politics",
+      status: "active",
+      end_date: 10.days.from_now,
+      resolution_criteria: "Official source."
+    )
+    market.create_risk_score!(
+      score: 42,
+      level: "medium",
+      factors: {},
+      computed_at: 1.hour.ago,
+      confidence_tier: "medium",
+      factor_metadata: {
+        "resolution_analysis" => { "from_fallback" => false },
+        "explanation" => {
+          "summary" => "Analysis complete.",
+          "confidenceNote" => "n",
+          "factors" => [],
+          "topRiskDrivers" => [],
+          "whyNotHigherRisk" => [],
+          "resolutionCriteria" => {},
+          "liquidityNote" => { "label" => "L", "explanation" => "e" }
+        }
+      }
+    )
+
+    get "/markets/#{market.event_id}/score_result", as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal false, body["pending"]
+    assert_equal 42, body["score"]
+  end
+
+  test "score_result fills risk factors from breakdown when explanation factors are empty" do
+    market = Market.create!(
+      event_id: "e-factors-breakdown",
+      event_question: "Q?",
+      condition_id: "0xfb",
+      category: "Politics",
+      status: "active",
+      end_date: 10.days.from_now,
+      resolution_criteria: "Official source."
+    )
+    market.create_risk_score!(
+      score: 42,
+      level: "medium",
+      factors: {},
+      computed_at: 1.hour.ago,
+      confidence_tier: "medium",
+      factor_metadata: {
+        "resolution_analysis" => { "from_fallback" => false },
+        "explanation" => {
+          "summary" => "S",
+          "factors" => [],
+          "topRiskDrivers" => [],
+          "whyNotHigherRisk" => [],
+          "resolutionCriteria" => {},
+          "liquidityNote" => {}
+        },
+        "breakdown" => {
+          "resolution_clarity" => { "score" => 55, "weight" => 0.38 },
+          "time_horizon" => { "score" => 40, "weight" => 0.17 },
+          "historical_accuracy" => { "score" => 30, "weight" => 0.18 },
+          "manipulation_risk" => { "score" => 25, "weight" => 0.17 },
+          "information_asymmetry" => { "score" => 35, "weight" => 0.10 }
+        }
+      }
+    )
+
+    get "/markets/#{market.event_id}/score_result", as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    clarity = body["factors"].find { |f| f["label"] == "Resolution Clarity" }
+    assert clarity
+    assert_equal 55, clarity["score"]
+    assert_equal 5, body["factors"].size
   end
 end

@@ -4,8 +4,16 @@ require "monitor"
 
 module RiskScorer
   module AiCallGovernor
+    # Legacy defaults for unknown providers only
     SESSION_MAX_CALLS = 20
     SESSION_MAX_CALLS_PER_MINUTE = 3
+    # Anthropic: scoring can issue multiple LLM calls per market; 3/min was too easy to hit in dev.
+    # Override with ANTHROPIC_SESSION_MAX_CALLS / ANTHROPIC_MAX_CALLS_PER_MINUTE.
+    ANTHROPIC_SESSION_MAX_CALLS_DEFAULT = 120
+    ANTHROPIC_MAX_CALLS_PER_MINUTE_DEFAULT = 40
+    # Embeddings are cheap and required for F6; keep separate from Anthropic chat limits.
+    OPENAI_SESSION_MAX_CALLS = 200
+    OPENAI_MAX_CALLS_PER_MINUTE = 60
     MAX_WAIT_SECONDS = 30
 
     @monitor = Monitor.new
@@ -62,13 +70,21 @@ module RiskScorer
         total_key = "ai_budget:#{provider}:#{skey}:total"
         minute_key = "ai_budget:#{provider}:#{skey}:minute:#{minute}"
 
+        max_session, max_per_minute = anthropic_openai_limits(provider)
+
         total = Rails.cache.read(total_key).to_i
-        return { allowed: false, reason: "AI scoring limit reached for this session. Using estimated scores." } if total >= SESSION_MAX_CALLS
+        if total >= max_session
+          Rails.logger.warn(
+            "[AiCallGovernor] #{provider} session cap reached (#{total}/#{max_session}, key=#{skey[0, 80]})"
+          )
+          return { allowed: false, reason: "AI scoring limit reached for this session. Using estimated scores." }
+        end
 
         waited = 0
-        until Rails.cache.read(minute_key).to_i < SESSION_MAX_CALLS_PER_MINUTE
+        until Rails.cache.read(minute_key).to_i < max_per_minute
           waited += 1
           if waited > MAX_WAIT_SECONDS
+            Rails.logger.warn("[AiCallGovernor] #{provider} per-minute cap wait exceeded (key=#{skey[0, 80]})")
             return { allowed: false, reason: "Rate limit wait exceeded. Using estimated scores." }
           end
           sleep 1
@@ -85,6 +101,19 @@ module RiskScorer
       end
 
       private
+
+      def anthropic_openai_limits(provider)
+        case provider.to_s
+        when "openai"
+          [OPENAI_SESSION_MAX_CALLS, OPENAI_MAX_CALLS_PER_MINUTE]
+        when "anthropic"
+          max_s = ENV.fetch("ANTHROPIC_SESSION_MAX_CALLS", ANTHROPIC_SESSION_MAX_CALLS_DEFAULT.to_s).to_i
+          max_m = ENV.fetch("ANTHROPIC_MAX_CALLS_PER_MINUTE", ANTHROPIC_MAX_CALLS_PER_MINUTE_DEFAULT.to_s).to_i
+          [[max_s, 1].max, [max_m, 1].max]
+        else
+          [SESSION_MAX_CALLS, SESSION_MAX_CALLS_PER_MINUTE]
+        end
+      end
 
       def normalized_session_key(session_key)
         raw = session_key.to_s.strip

@@ -15,15 +15,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <%= vite_client_tag %>
-    <%= vite_react_refresh_tag %>
-    <%= vite_javascript_tag "entrypoints/application.tsx" %>
-
     <%= yield :head %>
   </head>
 
   <body>
     <%= yield %>
+
+    <%# Vite must load after the Inertia root (#app) — scripts in <head> can run before <body> exists in edge cases. %>
+    <%= vite_client_tag %>
+    <%= vite_react_refresh_tag %>
+    <%= vite_javascript_tag "application.tsx" %>
 
     <% if Rails.env.development? && ENV["SHOW_API_DIAGNOSTICS"] == "true" %>
       <div id="dev_api_diagnostics_overlay" style="position:fixed;right:12px;bottom:12px;z-index:9999;max-width:340px;background:rgba(15,23,42,.95);color:#e2e8f0;border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:12px;font-size:11px;line-height:1.4;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;">

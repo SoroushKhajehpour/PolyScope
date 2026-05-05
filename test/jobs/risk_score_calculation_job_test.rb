@@ -3,39 +3,6 @@
 require "test_helper"
 
 class RiskScoreCalculationJobTest < ActiveSupport::TestCase
-  test "enqueue_unique enqueues when no duplicate pending" do
-    queue = Object.new
-    queue.define_singleton_method(:any?) { |_blk| false }
-
-    called = []
-    Sidekiq::Queue.stub(:new, queue) do
-      RiskScoreCalculationJob.stub(:perform_later, ->(mid) { called << mid }) do
-        RiskScoreCalculationJob.enqueue_unique(123)
-      end
-    end
-
-    assert_equal [123], called
-  end
-
-  test "enqueue_unique skips duplicate pending job for market" do
-    wrapped_args = {
-      "job_class" => "RiskScoreCalculationJob",
-      "arguments" => [123]
-    }
-    fake_job = Struct.new(:klass, :args).new("ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper", [wrapped_args])
-    queue = Object.new
-    queue.define_singleton_method(:any?) { |&blk| blk.call(fake_job) }
-
-    called = []
-    Sidekiq::Queue.stub(:new, queue) do
-      RiskScoreCalculationJob.stub(:perform_later, ->(mid) { called << mid }) do
-        RiskScoreCalculationJob.enqueue_unique(123)
-      end
-    end
-
-    assert_empty called
-  end
-
   test "perform with market_id creates or updates risk_score" do
     market = Market.create!(
       event_id: "e1",
@@ -69,7 +36,7 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
     RiskScoreCalculationJob.perform_now(0)
   end
 
-  test "perform broadcasts turbo stream after scoring" do
+  test "perform broadcasts score_complete on ActionCable after scoring" do
     market = Market.create!(
       event_id: "e-broadcast",
       event_question: "Q?",
@@ -88,15 +55,92 @@ class RiskScoreCalculationJobTest < ActiveSupport::TestCase
     end
 
     RiskScorer.stub(:call, fake_call) do
-      Turbo::StreamsChannel.stub(:broadcast_replace_to, ->(*args, **kwargs) { broadcast_calls << [args, kwargs] }) do
+      ActionCable.server.stub(:broadcast, ->(channel, payload) { broadcast_calls << [channel, payload] }) do
         RiskScoreCalculationJob.perform_now(market.id)
       end
     end
 
     assert_equal 1, broadcast_calls.size
-    args, kwargs = broadcast_calls.first
-    assert_equal "market_#{market.id}_score", args.first
-    assert_equal "risk_score_result", kwargs[:target]
-    assert_equal "markets/risk_score_result", kwargs[:partial]
+    channel, payload = broadcast_calls.first
+    assert_equal "score_channel_#{market.id}", channel
+    ev = payload.is_a?(Hash) ? (payload[:event] || payload["event"]) : nil
+    assert_equal "score_complete", ev
+  end
+
+  test "perform persists fallback and broadcasts when resolution_criteria is blank" do
+    market = Market.create!(
+      event_id: "e-no-criteria",
+      event_question: "Q?",
+      condition_id: "0xnc",
+      category: "Politics",
+      status: "active",
+      resolution_criteria: "Temporary."
+    )
+    market.update_column(:resolution_criteria, "   ")
+
+    broadcast_calls = []
+    ActionCable.server.stub(:broadcast, ->(*args) { broadcast_calls << args }) do
+      RiskScoreCalculationJob.perform_now(market.id)
+    end
+
+    market.reload
+    assert market.risk_score
+    assert_equal true, market.risk_score.factor_metadata["scoring_fallback"]
+    assert_equal 1, broadcast_calls.size
+    channel, payload = broadcast_calls.first
+    assert_equal "score_channel_#{market.id}", channel
+    ev = payload.is_a?(Hash) ? (payload[:event] || payload["event"]) : nil
+    assert_equal "score_complete", ev
+  end
+
+  test "perform runs RiskScorer when embedding step raises" do
+    market = Market.create!(
+      event_id: "e-embed-fail",
+      event_question: "Q?",
+      condition_id: "0xef",
+      category: "Politics",
+      status: "active",
+      resolution_criteria: "Resolved by official source."
+    )
+
+    fake_call = lambda do |m, persist: true, session_key: nil|
+      m.risk_score || m.create_risk_score!(score: 22, level: "low", factors: {}, computed_at: Time.current)
+      { score: 22, level: "low" }
+    end
+
+    MarketEmbeddingJob.stub(:perform_now, ->(*_args, **_kwargs) { raise StandardError, "embedding unavailable" }) do
+      RiskScorer.stub(:call, fake_call) do
+        RiskScoreCalculationJob.perform_now(market.id)
+      end
+    end
+
+    assert_equal 22, market.reload.risk_score.score
+  end
+
+  test "perform broadcasts score_complete after rescuing when scoring raises" do
+    market = Market.create!(
+      event_id: "e-broadcast-fail",
+      event_question: "Q?",
+      condition_id: "0xbf1",
+      category: "Politics",
+      status: "active",
+      resolution_criteria: "Resolved by official source."
+    )
+
+    broadcast_calls = []
+
+    MarketEmbeddingJob.stub(:perform_now, ->(*_args, **_kwargs) { true }) do
+      RiskScorer.stub(:call, ->(*_args, **_kwargs) { raise StandardError, "forced failure" }) do
+        ActionCable.server.stub(:broadcast, ->(*args) { broadcast_calls << args }) do
+          RiskScoreCalculationJob.perform_now(market.id)
+        end
+      end
+    end
+
+    assert_equal 1, broadcast_calls.size
+    channel, payload = broadcast_calls.first
+    assert_equal "score_channel_#{market.id}", channel
+    ev = payload.is_a?(Hash) ? (payload[:event] || payload["event"]) : nil
+    assert_equal "score_complete", ev
   end
 end

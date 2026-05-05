@@ -2,8 +2,8 @@
 require "digest"
 
 # Wrapper for OpenAI embeddings API. API key from ENV only (never hardcoded).
-# Set OPENAI_API_KEY in .env (or production env). Used only server-side; never sent to frontend.
-# Anthropic does not provide an embeddings API; this client uses OpenAI for vector embeddings.
+# Optional: set OPENAI_API_KEY for embedding-based similar-market matching. Scoring works without it (Claude-only).
+# Anthropic does not expose embeddings; this client uses OpenAI when configured.
 class EmbeddingClient
   DEFAULT_BASE_URL = "https://api.openai.com"
   DEFAULT_MODEL = "text-embedding-3-large"
@@ -34,15 +34,18 @@ class EmbeddingClient
     return nil if cached == "fallback_unavailable"
 
     dedupe_key = "openai:embeddings:dedupe:#{cache_key}"
+    # Use `next`, never `return`, inside this block — `return` skips AiCallGovernor lock cleanup
+    # and leaks @pending, deadlocking later embeds for the same text.
     RiskScorer::AiCallGovernor.with_dedup_lock(dedupe_key) do
       cached_again = Rails.cache.read(cache_key)
-      return cached_again if cached_again.is_a?(Array) && cached_again.any?
-      return nil if cached_again == "fallback_unavailable"
+      next cached_again if cached_again.is_a?(Array) && cached_again.any?
+      next nil if cached_again == "fallback_unavailable"
 
       budget = RiskScorer::AiCallGovernor.acquire_budget(provider: "openai", session_key: session_key)
       unless budget[:allowed]
-        Rails.cache.write(cache_key, "fallback_unavailable", expires_in: EMBEDDINGS_CACHE_TTL)
-        return nil
+        # Do not cache — budget may free on retry; caching looked like OpenAI was never used.
+        Rails.logger.info("[EmbeddingClient] OpenAI call skipped (budget): #{budget[:reason]}")
+        next nil
       end
 
       body = { model: @model, input: normalized }
@@ -58,14 +61,18 @@ class EmbeddingClient
         ApiDiagnostics.record_call(service: "openai.embeddings")
         ApiDiagnostics.record_rate_limit(service: "openai.embeddings", headers: res.headers.to_h)
       end
-      raise "Embedding API error: #{res.status}" unless res.success?
+      unless res.success?
+        Rails.logger.warn("[EmbeddingClient] HTTP #{res.status} from OpenAI embeddings")
+        next nil
+      end
 
       data = res.body
       arr = data.dig("data", 0, "embedding")
-      return nil unless arr.is_a?(Array)
+      next nil unless arr.is_a?(Array)
 
       vector = arr.map { |x| x.to_f }
       Rails.cache.write(cache_key, vector, expires_in: EMBEDDINGS_CACHE_TTL)
+      Rails.logger.info("[EmbeddingClient] OpenAI embedding OK (#{vector.size} dims, model=#{@model})")
       vector
     end
   rescue StandardError => e

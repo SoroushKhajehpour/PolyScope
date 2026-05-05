@@ -40,17 +40,22 @@ class MarketsController < ApplicationController
     reload_market_with_associations
 
     @risk_score = @market.risk_score
+    clear_recoverable_scoring_fallback!(@market, @risk_score)
+    reload_market_with_associations
+    @risk_score = @market.risk_score
+
     if insufficient_market_data?(@market)
       @risk_score = nil
       render inertia: "MarketShow", props: market_show_props(risk_score: nil)
       return
     end
 
-    if MarketFreshness.score_fresh?(@market)
+    if MarketFreshness.scoring_cache_valid?(@market)
       render inertia: "MarketShow", props: market_show_props(risk_score: @risk_score)
-    elsif @risk_score.blank? || MarketFreshness.blocking_display_stale?(@market)
-      # Without Sidekiq we still enqueue: development uses `async` Active Job so the response returns
-      # immediately and MarketEvaluating + polling work. Inline scoring only when forced (tests/debug).
+    elsif @risk_score.blank? || @risk_score.computed_at.blank?
+      # Full-screen loader only until we have a persisted score row to show. If we also treated
+      # blocking_display_stale? here, router.visit from the evaluating page would hit #show and
+      # immediately render MarketEvaluating again (infinite loop with score_result polling).
       if prefer_background_scoring?
         enqueue_supporting_jobs(@market)
         render inertia: "MarketEvaluating", props: evaluating_props(@market)
@@ -88,8 +93,9 @@ class MarketsController < ApplicationController
 
     risk_score = market.risk_score
 
-    # Pending only until we have a persisted score. Do not use Rails.cache for a "wait" flag — in dev,
-    # MemoryStore is per-process, so Puma and Sidekiq do not share it, which caused infinite pending.
+    # Pending only until a row exists (including provisional fallback). Stricter "wait for non-provisional"
+    # kept HTTP polling stuck when WebSockets were blocked — ActionCable + job broadcast handle the
+    # happy path; polling must still complete for any persisted score.
     if risk_score.blank? || risk_score.computed_at.blank?
       render json: { pending: true }
       return
@@ -126,7 +132,7 @@ class MarketsController < ApplicationController
     return {} if event_ids.blank?
 
     cache_key = "markets_digest:v1:#{Digest::SHA256.hexdigest(event_ids.sort.join(','))}"
-    Rails.cache.fetch(cache_key, expires_in: 45.seconds) do
+    Rails.cache.fetch(cache_key, expires_in: 90.seconds) do
       build_digest_entries(event_ids)
     end
   end
@@ -287,8 +293,7 @@ class MarketsController < ApplicationController
 
   def process_scoring_inline(market)
     session_key = ai_session_key
-    me = market.market_embedding
-    MarketEmbeddingJob.perform_now(market.id, session_key: session_key) if me.blank? || me.embedding_vector.blank?
+    # RiskScoreCalculationJob embeds when needed (single path; avoids duplicate OpenAI calls).
     RiskScoreCalculationJob.perform_now(market.id, session_key: session_key)
     market.reload
     if market.risk_score.blank?
@@ -299,17 +304,38 @@ class MarketsController < ApplicationController
     RiskScorer.persist_error_fallback!(market, error: e) if market&.persisted?
   end
 
-  # Development: default inline scoring so the first response includes MarketShow + risk score when APIs succeed.
-  # Production: default background jobs + MarketEvaluating to avoid HTTP timeouts on long LLM runs.
-  # Tests: default background (enqueue assertions) unless POLYSCOPE_FORCE_INLINE_SCORING.
+  def clear_recoverable_scoring_fallback!(market, risk_score)
+    return unless market&.persisted? && risk_score
+    return unless MarketFreshness.provisional_scoring_failure_for_risk_score?(risk_score)
+    return unless recoverable_pgvector_quote_error?(risk_score)
+
+    Rails.logger.info("[MarketsController] clearing recoverable Pgvector fallback for market_id=#{market.id}")
+    risk_score.destroy!
+    market.association(:risk_score).reset if market.association_cached?(:risk_score)
+  end
+
+  def recoverable_pgvector_quote_error?(risk_score)
+    text = scoring_error_text(risk_score)
+    text.include?("can't quote Pgvector::Vector") || text.include?("can't quote Pgvector::Vector".gsub("'", "’"))
+  end
+
+  def scoring_error_text(risk_score)
+    metadata = risk_score.factor_metadata.is_a?(Hash) ? risk_score.factor_metadata : {}
+    explanation = risk_score_meta_section(metadata, "explanation")
+
+    [
+      risk_score.has_attribute?(:confidence_note) ? risk_score[:confidence_note] : nil,
+      metadata["scoring_error"],
+      metadata[:scoring_error],
+      explanation["confidenceNote"],
+      explanation[:confidenceNote]
+    ].compact.map(&:to_s).join(" ")
+  end
+
+  # Default: background jobs + MarketEvaluating (progress UI) while scoring runs; avoids long HTTP stalls.
+  # Set POLYSCOPE_FORCE_INLINE_SCORING=1 to run scoring in the web process (dev/tests/debug only).
   def prefer_background_scoring?
-    if Rails.env.test?
-      !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
-    elsif Rails.env.development?
-      truthy_env?(ENV["POLYSCOPE_BACKGROUND_SCORING"])
-    else
-      !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
-    end
+    !truthy_env?(ENV["POLYSCOPE_FORCE_INLINE_SCORING"])
   end
 
   def backfill_resolution_criteria_if_missing(market)
@@ -361,10 +387,10 @@ class MarketsController < ApplicationController
     return nil unless risk_score
 
     metadata = risk_score.factor_metadata.is_a?(Hash) ? risk_score.factor_metadata : {}
-    explanation = metadata["explanation"].is_a?(Hash) ? metadata["explanation"] : {}
-    factors = explanation["factors"].is_a?(Array) ? explanation["factors"] : []
-    res_card = explanation["resolutionCriteria"].is_a?(Hash) ? explanation["resolutionCriteria"] : {}
-    liquidity = explanation["liquidityNote"].is_a?(Hash) ? explanation["liquidityNote"] : {}
+    explanation = risk_score_meta_section(metadata, "explanation")
+    res_card = risk_score_meta_section(explanation, "resolutionCriteria")
+    liquidity = risk_score_meta_section(explanation, "liquidityNote")
+    factors = serialized_risk_factors_payload(metadata, explanation)
 
     {
       scoring_fallback: metadata["scoring_fallback"] == true || metadata[:scoring_fallback] == true,
@@ -372,27 +398,28 @@ class MarketsController < ApplicationController
       level: risk_score.level.to_s,
       confidence_tier: risk_score.confidence_tier.to_s.presence,
       computed_at: risk_score.computed_at&.iso8601,
-      summary: explanation["summary"],
-      confidence_note: explanation["confidenceNote"],
-      confidence_explanation: explanation["confidenceExplanation"],
-      factors: factors.map { |f|
-        { label: f["label"], score: f["score"].to_i, explanation: f["explanation"] }
-      },
-      top_risk_drivers: Array(explanation["topRiskDrivers"]),
-      why_not_higher_risk: Array(explanation["whyNotHigherRisk"]),
+      summary: explanation["summary"] || explanation[:summary],
+      confidence_note: explanation["confidenceNote"] || explanation[:confidenceNote],
+      confidence_explanation: explanation["confidenceExplanation"] || explanation[:confidenceExplanation],
+      factors: factors,
+      top_risk_drivers: Array(explanation["topRiskDrivers"] || explanation[:topRiskDrivers]),
+      why_not_higher_risk: Array(explanation["whyNotHigherRisk"] || explanation[:whyNotHigherRisk]),
       resolution_criteria: {
-        criteriaText: res_card["criteriaText"],
-        hasAmbiguity: res_card["hasAmbiguity"] == true,
-        ambiguityLevel: res_card["ambiguityLevel"],
-        misinterpretations: res_card["misinterpretations"].is_a?(Array) ? res_card["misinterpretations"] : nil,
-        overallNote: res_card["overallNote"],
-        sourceLabel: res_card["sourceLabel"]
+        criteriaText: res_card["criteriaText"] || res_card[:criteriaText],
+        hasAmbiguity: res_card["hasAmbiguity"] == true || res_card[:hasAmbiguity] == true,
+        ambiguityLevel: res_card["ambiguityLevel"] || res_card[:ambiguityLevel],
+        misinterpretations: begin
+          m = res_card["misinterpretations"] || res_card[:misinterpretations]
+          m.is_a?(Array) ? m : nil
+        end,
+        overallNote: res_card["overallNote"] || res_card[:overallNote],
+        sourceLabel: res_card["sourceLabel"] || res_card[:sourceLabel]
       },
       liquidity: {
-        label: liquidity["label"],
-        explanation: liquidity["explanation"]
+        label: liquidity["label"] || liquidity[:label],
+        explanation: liquidity["explanation"] || liquidity[:explanation]
       },
-      data_sources_unavailable: Array(metadata["data_sources_unavailable"]),
+      data_sources_unavailable: Array(metadata["data_sources_unavailable"] || metadata[:data_sources_unavailable]),
       similar_resolved_markets: serialize_similar_resolved_markets(metadata)
     }
   end
@@ -437,5 +464,50 @@ class MarketsController < ApplicationController
     end
 
     flipped ? "Outcome differed from the initial proposal in UMA records" : "Had UMA dispute records"
+  end
+
+  # JSONB can surface string or symbol keys; some older rows lack explanation.factors but keep breakdown.
+  def risk_score_meta_section(parent, key)
+    return {} unless parent.is_a?(Hash)
+
+    child = parent[key] || parent[key.to_sym]
+    child.is_a?(Hash) ? child : {}
+  end
+
+  def serialized_risk_factors_payload(metadata, explanation)
+    raw = explanation["factors"] || explanation[:factors]
+    raw = [] unless raw.is_a?(Array)
+    normalized = raw.filter_map { |f| normalize_risk_factor_row(f) }
+    return normalized if normalized.any?
+
+    risk_factors_from_breakdown(metadata)
+  end
+
+  def normalize_risk_factor_row(f)
+    return nil unless f.is_a?(Hash)
+
+    label = f["label"] || f[:label]
+    return nil if label.blank?
+
+    {
+      label: label.to_s,
+      score: (f["score"] || f[:score]).to_i,
+      explanation: (f["explanation"] || f[:explanation]).presence
+    }
+  end
+
+  def risk_factors_from_breakdown(metadata)
+    breakdown = metadata["breakdown"] || metadata[:breakdown]
+    return [] unless breakdown.is_a?(Hash)
+
+    RiskScorer::ExplanationGenerator::FACTOR_LABELS.filter_map do |factor_key, label|
+      row = breakdown[factor_key.to_s] || breakdown[factor_key.to_sym] || breakdown[factor_key]
+      next unless row.is_a?(Hash)
+
+      raw_score = row["score"] || row[:score]
+      next if raw_score.nil?
+
+      { label: label, score: raw_score.to_i, explanation: nil }
+    end
   end
 end

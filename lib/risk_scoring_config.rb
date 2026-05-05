@@ -45,7 +45,9 @@ class RiskScoringConfig
     end
 
     def known_manipulated_sources
-      config[:known_manipulated_sources].to_a.map(&:to_s)
+      raw = config[:known_manipulated_sources]
+      # YAML may supply a list, a single string, or nil. Ruby 3 String has no #to_a (unlike older Ruby).
+      Array.wrap(raw).flatten.compact.map { |entry| entry.to_s.strip }.reject(&:blank?)
     end
 
     def confidence_tiers

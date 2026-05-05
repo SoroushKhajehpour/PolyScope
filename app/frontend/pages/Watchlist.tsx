@@ -5,6 +5,28 @@ import { useWatchlist } from "@/hooks/useWatchlist"
 import { useMarketsDigest } from "@/hooks/useMarketsDigest"
 import { marketPath } from "@/lib/utils"
 
+function BackHomeIcon() {
+  return (
+    <svg
+      className="block h-3.5 w-3.5 shrink-0 text-slate-500 transition-colors group-hover:text-slate-200"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 10v10h5v-6h4v6h5V10" />
+    </svg>
+  )
+}
+
 function badgeFor(row: {
   rules_changed_after_score?: boolean
   score_label_outdated?: boolean
@@ -41,16 +63,17 @@ export default function Watchlist() {
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-[13px] font-medium text-slate-500 transition hover:text-slate-200"
+            className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-500 transition hover:text-slate-200"
           >
-            ← Home
+            <BackHomeIcon />
+            Home
           </Link>
           <h1 className="text-lg font-semibold tracking-tight text-white">Watchlist</h1>
           <span className="w-14 sm:w-16" aria-hidden />
         </div>
 
         {items.length === 0 ? (
-          <p className="rounded-lg border border-white/8 bg-white/[0.03] px-5 py-8 text-center text-sm leading-relaxed text-slate-400">
+          <p className="rounded-lg border border-white/8 bg-white/3 px-5 py-8 text-center text-sm leading-relaxed text-slate-400">
             Save markets from search or a market page. Stored only in this browser (up to 50).
           </p>
         ) : (
@@ -60,7 +83,7 @@ export default function Watchlist() {
               return (
                 <li
                   key={event_id}
-                  className="flex items-stretch gap-4 rounded-lg border border-white/8 bg-white/[0.03] p-3 transition hover:border-white/12 sm:p-4"
+                  className="flex items-stretch gap-4 rounded-lg border border-white/8 bg-white/3 p-3 transition hover:border-white/12 sm:p-4"
                 >
                   <button
                     type="button"

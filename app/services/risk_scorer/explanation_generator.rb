@@ -24,7 +24,7 @@ module RiskScorer
         end
 
         {
-          summary: summary_for(score, market_type, resolution_analysis),
+          summary: summary_for(score, resolution_analysis),
           factors: factors,
           topRiskDrivers: top_risk_drivers(factors),
           whyNotHigherRisk: why_not_higher_risk(factors, market_type),
@@ -37,7 +37,7 @@ module RiskScorer
 
       private
 
-      def summary_for(score, market_type, resolution_analysis = {})
+      def summary_for(score, resolution_analysis = {})
         if !resolution_analysis[:from_fallback] && resolution_analysis[:overallNote].present?
           return resolution_analysis[:overallNote]
         end
@@ -48,7 +48,7 @@ module RiskScorer
           "This market carries MEDIUM risk because key outcomes are verifiable, but timing and context still add uncertainty."
         else
           "This market carries HIGH risk because one or more major factors increase uncertainty and manipulation exposure."
-        end + " Market type detected: #{market_type}."
+        end
       end
 
       def impact_for(score)

@@ -15,30 +15,12 @@ interface EvaluatingCardProps {
 }
 
 export default function EvaluatingCard({ market }: EvaluatingCardProps) {
-  const [progress, setProgress] = useState(0)
   const [statusIndex, setStatusIndex] = useState(0)
   const [statusVisible, setStatusVisible] = useState(true)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
 
-  // Progress bar animation
-  useEffect(() => {
-    const start = performance.now()
-    const duration = 7000
-    const target = 82
-
-    const tick = (now: number) => {
-      const elapsed = now - start
-      const t = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setProgress(Math.round(eased * target))
-      if (t < 1) requestAnimationFrame(tick)
-    }
-
-    requestAnimationFrame(tick)
-  }, [])
-
-  // Cycling status text
+  // Cycling status text (slower cadence — fewer layout updates vs. tight polling elsewhere).
   useEffect(() => {
     const interval = setInterval(() => {
       setStatusVisible(false)
@@ -46,7 +28,7 @@ export default function EvaluatingCard({ market }: EvaluatingCardProps) {
         setStatusIndex((i) => (i + 1) % statuses.length)
         setStatusVisible(true)
       }, 250)
-    }, 1800)
+    }, 2800)
     return () => clearInterval(interval)
   }, [])
 
@@ -236,37 +218,29 @@ export default function EvaluatingCard({ market }: EvaluatingCardProps) {
         </span>
       </div>
 
-      {/* Progress bar */}
+      {/* Indeterminate progress (CSS-only — no % reset on remount / double navigation). */}
       <div
         style={{
           width: "100%",
-          height: 2,
+          height: 3,
           background: "rgba(255,255,255,0.07)",
           borderRadius: 99,
           overflow: "hidden",
         }}
       >
-        <div
-          className="animate-bar-breathe"
-          style={{
-            height: "100%",
-            borderRadius: 99,
-            background: "#5B6EF5",
-            width: `${progress}%`,
-          }}
-        />
+        <div className="animate-evaluating-indeterminate" style={{ height: "100%" }} />
       </div>
 
-      {/* Percentage */}
-      <div style={{ width: "100%", marginTop: 6, textAlign: "right" }}>
+      <div style={{ width: "100%", marginTop: 8, textAlign: "right" }}>
         <span
           style={{
             fontSize: 11,
             fontFamily: "ui-monospace, monospace",
             color: "rgba(255,255,255,0.22)",
+            letterSpacing: "0.06em",
           }}
         >
-          {progress}%
+          IN PROGRESS
         </span>
       </div>
     </div>

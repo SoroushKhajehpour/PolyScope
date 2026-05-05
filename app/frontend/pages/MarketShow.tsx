@@ -56,11 +56,21 @@ export default function MarketShow({ market, risk_score, score_context }: Props)
               >
                 <p className="font-medium text-amber-50">Provisional score</p>
                 <p className="mt-1 text-amber-100/85">
-                  Full analysis did not complete (often missing{" "}
-                  <span className="font-mono text-[12px]">ANTHROPIC_API_KEY</span> or{" "}
-                  <span className="font-mono text-[12px]">OPENAI_API_KEY</span>
-                  ). The number below is an estimate so the page still loads — fix keys and refresh for a full
-                  breakdown.
+                  {risk_score.confidence_note ? (
+                    <>
+                      Last scoring run did not complete: {risk_score.confidence_note}. The number below is a
+                      placeholder estimate. If you expected a full breakdown, check server logs and API quota;{" "}
+                      <span className="font-mono text-[12px]">OPENAI_API_KEY</span> is optional (similar markets only).
+                    </>
+                  ) : (
+                    <>
+                      Full analysis did not complete (usually missing{" "}
+                      <span className="font-mono text-[12px]">ANTHROPIC_API_KEY</span>
+                      ). The number below is an estimate so the page still loads — add the key and refresh for a full
+                      breakdown. <span className="font-mono text-[12px]">OPENAI_API_KEY</span> is optional (similar
+                      markets only).
+                    </>
+                  )}
                 </p>
               </div>
             )}

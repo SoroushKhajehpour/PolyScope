@@ -48,7 +48,12 @@ export interface CriteriaSnapshotEntry {
   type: "snapshot"
   id: string
   at: string | null
+  /** Truncated preview in the list row */
   summary: string
+  /** Full stored criteria text for this snapshot (shown when row is expanded) */
+  full_text?: string | null
+  /** Same as full_text if props are camel-cased anywhere in the stack */
+  fullText?: string | null
   change_type: string | null
   edit_distance_ratio: number | null
 }
@@ -58,6 +63,10 @@ export interface CriteriaClarificationEntry {
   id: string
   at: string | null
   summary: string
+  /** Full criteria text after this detected change */
+  full_text?: string | null
+  /** Same as full_text if props are camel-cased anywhere in the stack */
+  fullText?: string | null
   diff_html: string | null
 }
 

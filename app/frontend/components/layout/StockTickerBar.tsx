@@ -159,6 +159,11 @@ export default function StockTickerBar() {
     directionRef.current = 1
 
     const animate = () => {
+      rafRef.current = requestAnimationFrame(animate)
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return
+      }
+
       const vel = getVelocity(xProgressRef.current) * directionRef.current
       xProgressRef.current = Math.max(0, Math.min(1, xProgressRef.current + vel))
 
@@ -179,10 +184,9 @@ export default function StockTickerBar() {
       linesRef.current.forEach((line) => {
         drawLine(ctx, canvas, line, xProgressRef.current, directionRef.current)
       })
-      rafRef.current = requestAnimationFrame(animate)
     }
 
-    animate()
+    rafRef.current = requestAnimationFrame(animate)
 
     const onResize = () => {
       canvas.width = window.innerWidth
@@ -210,7 +214,11 @@ export default function StockTickerBar() {
         WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
       }}
     >
-      <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", width: "100%", height: "100%", pointerEvents: "none" }}
+        aria-hidden
+      />
     </div>
   )
 }
