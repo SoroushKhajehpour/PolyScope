@@ -1,4 +1,5 @@
 # PolyScope
+![PolyScope Logo](../polyscope-favicon.png)
 
 Resolution risk intelligence for Polymarket
 
@@ -36,7 +37,7 @@ Liquidity is scored separately. Each factor includes a plain-English explanation
 
 - Backend: Rails 8, PostgreSQL + pgvector, Sidekiq + Redis
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS, Inertia.js
-- AI: Anthropic Claude (risk analysis), OpenAI embeddings (similar market matching)
+- AI: Anthropic Claude (risk analysis — **required** for full scoring), OpenAI embeddings (similar-market factor — **optional**)
 - Data: Polymarket Gamma API, UMA dispute rates
 
 ## Setup
@@ -48,11 +49,12 @@ cd app
 bin/setup
 ```
 
-Set environment variables:
+Set environment variables (Claude is enough to score markets; OpenAI only enhances similar-market matching):
 
 ```
 ANTHROPIC_API_KEY=...
-OPENAI_API_KEY=...
+# Optional — enables embedding-based similar-market similarity:
+# OPENAI_API_KEY=...
 ```
 
 ## Running
@@ -71,14 +73,6 @@ npm run dev:full
 
 `npm run dev` alone only runs **Vite** (frontend assets). It does not start the Rails server, so opening `http://localhost:3000` will show nothing useful until you also run `bin/rails server` (or use `bin/dev` / `npm run dev:full` above).
 
-**Risk scoring behavior**
-
-- **Development** (default): scoring runs **inline** in the same request, so the market page returns **with a risk score** when API keys and Polymarket data are available (first load can take a while). Set **`POLYSCOPE_BACKGROUND_SCORING=1`** to use background jobs + the evaluating screen instead (Rails uses the **`:async`** job adapter in development so Sidekiq/Redis are not required for that path).
-- **Production**: scoring uses **background jobs** + the evaluating/polling flow by default (avoids HTTP timeouts). Set **`POLYSCOPE_FORCE_INLINE_SCORING=1`** only if you intentionally want synchronous scoring.
-- **Resolution text**: if Polymarket does not send separate criteria copy, the server fills a minimal criteria string from the question so scoring can run.
-- If full scoring still fails (missing API keys, network, etc.), the app saves a **provisional** mid-range score so the market page still loads, with a visible banner — set **`ANTHROPIC_API_KEY`** and **`OPENAI_API_KEY`** and reload for a real analysis.
-
-**Sidekiq** is not started by `bin/dev`. In production, run a Sidekiq worker so queued scores complete. For optional local Sidekiq UI / Redis, start Redis, then:
 
 ```
 bundle exec sidekiq -C config/sidekiq.yml
