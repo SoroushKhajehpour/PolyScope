@@ -1,5 +1,5 @@
 # PolyScope
-![PolyScope Logo](../polyscope-favicon.png)
+![PolyScope Logo](public/polyscope-favicon.png)
 
 Resolution risk intelligence for Polymarket
 
